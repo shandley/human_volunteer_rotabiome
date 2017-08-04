@@ -1,0 +1,510 @@
+---
+title: "Human Volunteer 16S Amplicon Analysis"
+author: "Scott A. Handley"
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=8,
+                      fig.height=6,
+                      fig.path="./figures/",
+                      warning=FALSE,
+                      message=FALSE)
+```
+## Initiate environment
+
+```{r initiate-environment}
+library("tidyverse")
+packageVersion("tidyverse")
+library("phyloseq")
+packageVersion("phyloseq")
+library("RColorBrewer")
+packageVersion("RColorBrewer")
+library("vegan")
+packageVersion("vegan")
+library("gridExtra")
+packageVersion("gridExtra")
+library("knitr")
+packageVersion("knitr")
+library("DESeq2")
+packageVersion("DeSeq2")
+library("plotly")
+packageVersion("plotly")
+library("microbiome")
+packageVersion("microbiome")
+library("ggpubr")
+packageVersion("ggpubr")
+library("randomForest")
+packageVersion("randomForest")
+library("data.table")
+packageVersion("data.table")
+library("HH")
+packageVersion("HH")
+
+```
+
+```{r global-theme-settings, include=FALSE}
+# Set global theming
+theme_set(theme_bw(base_size = 10,
+                   base_family = "Helvetica"))
+
+```
+##Load phyloseq data generated from dada2
+
+```{r initiate-data}
+# Load Phyloseq object generated in HIV_oral_preprocessing.Rmd
+# Options include GreenGenes, SILVA, RDP and HitDB
+ps0 <- readRDS("~/Dropbox/Research/human_volunteer/data/ps0.Harris.rdp.RDS")
+ps0
+
+# Load mapping file
+map <- import_qiime_sample_data("~/Dropbox/Research/human_volunteer/data/human_volunteer_mapping_USE.txt")
+ps0 <- merge_phyloseq(ps0, map)
+
+# View sample variables & generate basic stats
+sample_variables(ps0)
+summary(sample_sums(ps0))
+sd(sample_sums(ps0))
+
+```
+
+##Factor reordering and renaming
+
+```{r factor-adjustments}
+# Factor re-ordering, relabelling, etc.
+
+# Order randomization arms 
+sample_data(ps0)$randomization_arm
+sample_data(ps0)$randomization_arm <- factor(sample_data(ps0)$randomization_arm, levels = c("No Antibiotics", "Narrow Spectrum Antibiotics", "Broad Spectrum Antibiotics"))
+sample_data(ps0)$randomization_arm
+
+```
+## ASV summary statistics
+
+```{r data-assessment}
+# Create a new data frame of the sorted row sums, a column of sorted values from 1 to the total number of individuals/counts for each RSV and a categorical variable stating these are all RSVs.
+readsumsdf = data.frame(nreads = sort(taxa_sums(ps0), TRUE), 
+                        sorted = 1:ntaxa(ps0),
+                        type = "RSVs")
+
+
+# Add a column of sample sums (total number of individuals per sample)
+readsumsdf = rbind(readsumsdf,
+                   data.frame(nreads = sort(sample_sums(ps0), TRUE),
+                              sorted = 1:nsamples(ps0),
+                              type = "Samples"))
+
+# Make a data frame with a column for the read counts of each sample for histogram production
+sample_sum_df <- data.frame(sum = sample_sums(ps0))
+
+# Make plots
+# Generates a bar plot with # of reads (y-axis) for each taxa. Sorted from most to least abundant
+# Generates a second bar plot with # of reads (y-axis) per sample. Sorted from most to least
+p.reads = ggplot(readsumsdf, aes(x = sorted, y = nreads)) +
+  geom_bar(stat = "identity") +
+  ggtitle("RSV Assessment") +
+  scale_y_log10() +
+  facet_wrap(~type, scales = "free") +
+  ylab("# of Reads")
+
+# Histogram of the number of Samples (y-axis) at various read depths
+p.reads.hist <- ggplot(sample_sum_df, aes(x = sum)) + 
+  geom_histogram(color = "black", fill = "firebrick3", binwidth = 150) +
+  ggtitle("Distribution of sample sequencing depth") + 
+  xlab("Read counts") +
+  ylab("# of Samples")
+
+# Final plot, side-by-side
+grid.arrange(p.reads, p.reads.hist, ncol = 2)
+
+# Basic summary statistics
+summary(sample_sums(ps0))
+
+```
+##Bad sample identification and removal
+
+```{r sample-removal-identification}
+# Format a data table to combine sample summary data with sample variable data
+ss <- sample_sums(ps0)
+sd <- as.data.frame(sample_data(ps0)) # useful to coerce the phyloseq object into an R data frame
+ss.df <- merge(sd, data.frame("RSVs" = ss), by ="row.names") # merge ss with sd by row names. Rename ss to RSVs in the new data frame
+
+# Plot the data by the treatment variable
+
+y = 100 # Set a threshold for the minimum number of acceptable reads. Can start as a guess
+x = "randomization_arm" # Set the x-axis variable you want to examine
+label = "Description" # This is the label you want to overlay on the points that are below threshold y. Should be something sample specific
+
+# Plot
+p.ss.boxplot<- ggplot(ss.df, aes_string(x, y = "RSVs")) + # x is what you assigned it above
+  geom_boxplot(outlier.colour="NA", aes(group = randomization_arm)) +
+  scale_y_log10() +
+  geom_hline(yintercept = y, lty = 2) + # Draws a dashed line across the threshold you set above as y
+  geom_jitter(alpha = 0.5, width = 0.15, size = 3) +
+  #geom_text(data = subset(ss.df, RSVs <= y), aes_string(x, y="RSVs", label=label), size=2, hjust -1) +# This labels a subset that fall below threshold variable y and labels them with the label variable
+  ggtitle("Number of ASV") +
+  ylab("ASV (log10)") +
+  facet_grid(~day) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  theme(legend.position = "NULL")
+p.ss.boxplot
+
+# Remove samples with fewer than 100 sequences
+ps0 <- prune_samples(sample_sums(ps0)>=100, ps0)
+ps0
+min(sample_sums(ps0))
+
+```
+##Overall sample relationship to evaluate sample outliers
+
+```{r outlier-sample-evaluation}
+# Outlier evaluation
+out.bray <- ordinate(ps0, method = "MDS", distance = "bray")
+p.MDS.outlier <- plot_ordination(ps0, out.bray, color = "randomization_arm", axes = c(1,2)) +
+  theme_bw() +
+  facet_grid(~day) +
+  geom_point(size = 2) +
+  ggtitle("MDS of Bray Distances \nOutlier Evaluation") +
+  stat_ellipse(type = "norm", geom = "polygon", alpha = 1/10, aes(fill = randomization_arm))
+p.MDS.outlier
+
+# There is no distiguishable feature to identify samples as obvious outliers using this projection. No samples will be removed based on MDS of Bray-curtis distances.
+
+```
+##Prevalence assessment and taxon filtering
+
+```{r prevalence-assessment}
+# Begin by removing sequences that were not classified as Bacteria or were classified as either mitochondria or chlorplast
+
+ps0 # Check the number of taxa prior to removal
+ps1 <- ps0 %>%
+  subset_taxa(
+    Kingdom == "Bacteria" &
+    Family  != "mitochondria" &
+    Class   != "Chloroplast"
+  )
+ps1 # Confirm that the taxa were removed
+
+ps1.d_9 <- subset_samples(ps1, day == "-9")
+ps1.d0 <- subset_samples(ps1, day == "0")
+ps1.d7 <- subset_samples(ps1, day == "7")
+
+# Prevelance estimation
+# Calculate feature prevelance across the data set
+prevdf.d_9 <- apply(X = otu_table(ps1.d_9),MARGIN = ifelse(taxa_are_rows(ps1.d_9), yes = 1, no = 2),FUN = function(x){sum(x > 0)})
+prevdf.d0 <- apply(X = otu_table(ps1.d0),MARGIN = ifelse(taxa_are_rows(ps1.d0), yes = 1, no = 2),FUN = function(x){sum(x > 0)})
+prevdf.d7 <- apply(X = otu_table(ps1.d7),MARGIN = ifelse(taxa_are_rows(ps1.d7), yes = 1, no = 2),FUN = function(x){sum(x > 0)})
+
+# Add taxonomy and total read counts to prevdf
+prevdf.d_9 <- data.frame(Prevalence = prevdf.d_9, TotalAbundance = taxa_sums(ps1.d_9), tax_table(ps1.d_9))
+prevdf.d0 <- data.frame(Prevalence = prevdf.d0, TotalAbundance = taxa_sums(ps1.d0), tax_table(ps1.d0))
+prevdf.d7 <- data.frame(Prevalence = prevdf.d7, TotalAbundance = taxa_sums(ps1.d7), tax_table(ps1.d7))
+
+# Create a table of Phylum, their mean abundances across all samples, and the number of samples they were detected in
+plyr::ddply(prevdf.d_9, "Phylum", function(df1){cbind(mean(df1$Prevalence),sum(df1$Prevalence))})
+plyr::ddply(prevdf.d0, "Phylum", function(df1){cbind(mean(df1$Prevalence),sum(df1$Prevalence))})
+plyr::ddply(prevdf.d7, "Phylum", function(df1){cbind(mean(df1$Prevalence),sum(df1$Prevalence))})
+
+#Prevalence plot - t1
+prevdf1.d_9 <- subset(prevdf.d_9, Phylum %in% get_taxa_unique(ps1.d_9, "Phylum"))
+p.prevdf1.d_9 <- ggplot(prevdf1.d_9, aes(TotalAbundance, Prevalence / nsamples(ps1.d_9),color=Family)) +
+  # geom_hline(yintercept = 0.03, alpha = 0.5, linetype = 2) +
+  geom_point(size = 1.5, alpha = 0.7) +
+  scale_x_log10(limits = c(1,10000), breaks = c(100,10000)) +
+  xlab("Total Abundance") + ylab("Prevalence [Frac. Samples]") +
+  facet_grid(~Phylum) +
+  theme(legend.position="None") +
+  theme(axis.title.x = element_blank()) +
+  ggtitle("Day -9")
+
+#Prevalence plot - t2
+prevdf1.d0 <- subset(prevdf.d0, Phylum %in% get_taxa_unique(ps1.d0, "Phylum"))
+p.prevdf1.d0 <- ggplot(prevdf1.d0, aes(TotalAbundance, Prevalence / nsamples(ps1.d0),color=Family)) +
+  # geom_hline(yintercept = 0.03, alpha = 0.5, linetype = 2) +
+  geom_point(size = 1.5, alpha = 0.7) +
+  scale_x_log10(limits = c(1,10000), breaks = c(100,10000)) +
+  xlab("Total Abundance") + ylab("Prevalence [Frac. Samples]") +
+  facet_grid(~Phylum) +
+  theme(legend.position="None") +
+  theme(axis.title.x = element_blank()) +
+  ggtitle("Day 0")
+
+#Prevalence plot - t3
+prevdf1.d7 <- subset(prevdf.d7, Phylum %in% get_taxa_unique(ps1.d7, "Phylum"))
+p.prevdf1.d7 <- ggplot(prevdf1.d7, aes(TotalAbundance, Prevalence / nsamples(ps1.d7),color=Family)) +
+  # geom_hline(yintercept = 0.03, alpha = 0.5, linetype = 2) +
+  geom_point(size = 1.5, alpha = 0.7) +
+  scale_x_log10(limits = c(1,10000), breaks = c(100,10000)) +
+  xlab("Total Abundance") + ylab("Prevalence [Frac. Samples]") +
+  facet_grid(~Phylum) +
+  theme(legend.position="None") +
+  theme(axis.title.x = element_blank()) +
+  ggtitle("Day 7")
+
+grid.arrange(p.prevdf1.d_9, p.prevdf1.d0, p.prevdf1.d7, nrow = 3)
+
+```
+
+##Common data transformations
+
+```{r data-transform}
+# Transform to Realative abundances
+ps1.ra <- transform_sample_counts(ps1, function(OTU) OTU/sum(OTU))
+
+# Transform to Proportional Abundance
+ps1.prop <- transform_sample_counts(ps1, function(x) min(sample_sums(ps1)) * x/sum(x))
+
+# Log transformation moves to a more normal distribution
+ps1.log <- transform_sample_counts(ps1, function(x) log(1 + x))
+
+# View how each function altered count data
+par(mfrow=c(1,4))
+plot(sort(sample_sums(ps1), TRUE), type = "o", main = "Native", ylab = "RSVs", xlab = "Samples")
+plot(sort(sample_sums(ps1.log), TRUE), type = "o", main = "log Transfromed", ylab = "RSVs", xlab = "Samples")
+plot(sort(sample_sums(ps1.ra), TRUE), type = "o", main = "Relative Abundance", ylab = "RSVs", xlab = "Samples")
+plot(sort(sample_sums(ps1.prop), TRUE), type = "o", main = "Proportional Abundance", ylab = "RSVs", xlab = "Samples")
+par(mfrow=c(1,1))
+
+# Histograms of the non-transformed data vs. the transformed data can address the shift to normality
+p.nolog <- qplot(rowSums(otu_table(ps1))) + ggtitle("Raw Counts") +
+  theme_bw() +
+  xlab("Row Sum") +
+  ylab("# of Samples")
+
+p.log <- qplot(log10(rowSums(otu_table(ps1)))) +
+  ggtitle("log10 transformed counts") +
+  theme_bw() +
+  xlab("Row Sum") +
+  ylab("# of Samples")
+
+grid.arrange(p.nolog, p.log, ncol = 2)
+
+```
+##Subsetting
+
+```{r subsetting}
+# Subset. Always subset after taxa/sample filtering
+# Time 1 (Day -9)
+ps1.t1 <- subset_samples(ps1, day == "-9")
+ps1.t1
+ps1.t1 <- prune_samples(sample_sums(ps1.t1) > 0, ps1.t1)
+ps1.t1
+ps1.t1.log <- transform_sample_counts(ps1.t1, function(x) log(1 + x))
+
+# Time 2 (Day 0)
+ps1.t2 <- subset_samples(ps1, day == "0")
+ps1.t2
+ps1.t2 <- prune_samples(sample_sums(ps1.t2) > 0, ps1.t2)
+ps1.t2
+ps1.t2.log <- transform_sample_counts(ps1.t2, function(x) log(1 + x))
+
+# Time 3 (Day 7)
+ps1.t3 <- subset_samples(ps1, day == "7")
+ps1.t3
+ps1.t3 <- prune_samples(sample_sums(ps1.t3) > 0, ps1.t3)
+ps1.t3
+ps1.t3.log <- transform_sample_counts(ps1.t3, function(x) log(1 + x))
+
+```
+##Community composition plotting
+
+```{r community-composition-plots}
+# Community composition - Baseline and Week 24 timepoints combined
+# Phyla level plots
+# Melt to long format (for ggploting) 
+# Prune out phyla below % in each sample
+
+threshold = 0.03
+
+# Time 1 (Day -9)
+ps1_phylum.t1 <- ps1.t1 %>%
+  tax_glom(taxrank = "Phylum") %>%                     # agglomerate at phylum level
+  transform_sample_counts(function(x) {x/sum(x)} ) %>% # Transform to rel. abundance
+  psmelt() %>%                                         # Melt to long format
+  filter(Abundance > threshold) %>%                    # Filter out low abundance taxa
+  arrange(Phylum)                                      # Sort data frame alphabetically by phylum
+
+# Convert Sample No to a factor because R is weird sometime
+ps1_phylum.t1$sample_ID <- as.factor(ps1_phylum.t1$sample_ID)
+
+# Creat a Phyla level table for external analysis
+# write.table(ps1_phylum, file = "./results/phylum.txt", sep="\t")
+
+# Plot - Phylum - Time 1 (Day -9)
+p.comm.bar.t1 <- ggplot(ps1_phylum.t1, aes(x = sample_ID, y = Abundance, fill = Phylum)) + 
+  geom_bar(stat = "identity") +
+  facet_wrap(~randomization_arm, scales = "free_x") +
+  ggtitle("Day -9\nAbundant Phylum (> 3%) in All Samples") +
+  ylab("Relative Abundance") +
+  theme(legend.position = "bottom") +
+  scale_fill_manual(values = c('#1b9e77','#d95f02','#7570b3','#e7298a','#66a61e'))
+p.comm.bar.t1
+
+# Generate interavtive bar plot
+ggplotly(p.comm.bar.t1)
+
+# Time 2 (Day 0)
+ps1_phylum.t2 <- ps1.t2 %>%
+  tax_glom(taxrank = "Phylum") %>%                     # agglomerate at phylum level
+  transform_sample_counts(function(x) {x/sum(x)} ) %>% # Transform to rel. abundance
+  psmelt() %>%                                         # Melt to long format
+  filter(Abundance > threshold) %>%                    # Filter out low abundance taxa
+  arrange(Phylum)                                      # Sort data frame alphabetically by phylum
+
+# Convert Sample No to a factor because R is weird sometime
+ps1_phylum.t2$sample_ID <- as.factor(ps1_phylum.t2$sample_ID)
+
+# Creat a Phyla level table for external analysis
+# write.table(ps1_phylum, file = "./results/phylum.txt", sep="\t")
+
+# Plot - Phylum - Time 2 (Day 0)
+p.comm.bar.t2 <- ggplot(ps1_phylum.t2, aes(x = sample_ID, y = Abundance, fill = Phylum)) + 
+  geom_bar(stat = "identity") +
+  facet_wrap(~randomization_arm, scales = "free_x") +
+  ggtitle("Day 0\nAbundant Phylum (> 3%) in All Samples") +
+  ylab("Relative Abundance") +
+  theme(legend.position = "bottom") +
+  scale_fill_manual(values = c('#1b9e77', '#d95f02', '#7570b3', '#a6761d', '#e7298a', '#666666', '#e6ab02', '#66a61e'))
+p.comm.bar.t2
+
+# Generate interavtive bar plot
+ggplotly(p.comm.bar.t2)
+
+# Time 3 (Day 7)
+ps1_phylum.t3 <- ps1.t3 %>%
+  tax_glom(taxrank = "Phylum") %>%                     # agglomerate at phylum level
+  transform_sample_counts(function(x) {x/sum(x)} ) %>% # Transform to rel. abundance
+  psmelt() %>%                                         # Melt to long format
+  filter(Abundance > threshold) %>%                    # Filter out low abundance taxa
+  arrange(Phylum)                                      # Sort data frame alphabetically by phylum
+
+# Convert Sample No to a factor because R is weird sometime
+ps1_phylum.t3$sample_ID <- as.factor(ps1_phylum.t3$sample_ID)
+
+# Creat a Phyla level table for external analysis
+# write.table(ps1_phylum, file = "./results/phylum.txt", sep="\t")
+
+# Plot - Phylum - Time 3 (Day 7)
+p.comm.bar.t3 <- ggplot(ps1_phylum.t3, aes(x = sample_ID, y = Abundance, fill = Phylum)) + 
+  geom_bar(stat = "identity") +
+  facet_wrap(~randomization_arm, scales = "free_x") +
+  ggtitle("Day 7\nAbundant Phylum (> 3%) in All Samples") +
+  ylab("Relative Abundance") +
+  scale_fill_manual(values = c('#1b9e77', '#d95f02', '#7570b3', '#a6761d', '#e7298a', '#e6ab02', '#66a61e')) +
+  theme(legend.position = "bottom")
+p.comm.bar.t3
+
+# Color schemes
+# Actionobacteria = #1b9e77
+# Bacteroidetes = #d95f02
+# Firmicutes = #7570b3
+# Proteobacteria = #e7298a
+# Verrumicrobia = #66a61e
+# Synergistetes = #e6ab02
+# Fusobacteria = #a6761d
+# Spirochaetes = #666666
+
+# Generate interavtive bar plot
+ggplotly(p.comm.bar.t3)
+
+grid.arrange(p.comm.bar.t1, p.comm.bar.t2, p.comm.bar.t3, nrow = 3)
+
+```
+## Alpha diversity summary information generation
+
+```{r add-sample-data}
+# Diversity
+diversity <- global(ps1)
+head(diversity)
+
+sd.1 <- as.data.frame(sample_data(ps1)) # useful to coerce the phyloseq object into an R data frame
+ps1.rich <- merge(sd.1, diversity, by ="row.names") # merge sd.1 by row names
+
+# Add divergence measurements
+ps1.rich$divergence <- divergence(ps1)
+
+```
+##Metadata analysis
+
+```{r metadata-plots}
+# Frequency plots
+plot_frequencies(sample_data(ps1), "day", "randomization_arm")
+
+
+```
+
+##Alpha diversity - categorical analysis
+
+```{r alpha-diversity-day-treatment-richness}
+# Subset by time (Day -9, 0 and 7)
+ps1.rich.t1 <- subset(ps1.rich, day == "-9")
+ps1.rich.t2 <- subset(ps1.rich, day == "0")
+ps1.rich.t3 <- subset(ps1.rich, day == "7")
+
+my_comparisons <- list(c("No Antibiotics", "Narrow Spectrum Antibiotics"), c("No Antibiotics", "Broad Spectrum Antibiotics", c("Narrow Spectrum Antibiotics", "Broad Specturm Antibiotics")))
+
+p.rich.t1.treat <- ggboxplot(ps1.rich.t1, x = "randomization_arm", y = "richness_0", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylab("Richness") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(comparisons = my_comparisons) +
+  stat_compare_means(label.y = 270) +
+  ggtitle("Day -9")
+
+p.rich.t2.treat <- ggboxplot(ps1.rich.t2, x = "randomization_arm", y = "richness_0", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylab("Richness") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(comparisons = my_comparisons) +
+  stat_compare_means(label.y = 270) +
+  ggtitle("Day 0")
+
+p.rich.t3.treat <- ggboxplot(ps1.rich.t3, x = "randomization_arm", y = "richness_0", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylab("Richness") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(comparisons = my_comparisons) +
+  stat_compare_means(label.y = 270) +
+  ggtitle("Day 7")
+
+grid.arrange(p.rich.t1.treat, p.rich.t2.treat, p.rich.t3.treat, ncol = 3)
+
+```
+
+```{r alpha-diversity-day-treatment-shannon_div}
+
+p.rich.t1.treat.sd <- ggboxplot(ps1.rich.t1, x = "randomization_arm", y = "diversities_shannon", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylab("Shannon Diversity") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(comparisons = my_comparisons) +
+  #stat_compare_means(label.y = 270) +
+  ggtitle("Day -9")
+
+p.rich.t2.treat.sd <- ggboxplot(ps1.rich.t2, x = "randomization_arm", y = "diversities_shannon", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylab("Shannon Diversity") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(comparisons = my_comparisons) +
+  #stat_compare_means(label.y = 270) +
+  ggtitle("Day 0")
+
+p.rich.t3.treat.sd <- ggboxplot(ps1.rich.t3, x = "randomization_arm", y = "diversities_shannon", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylab("Shannon Diversity") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(comparisons = my_comparisons) +
+  #stat_compare_means(label.y = 270) +
+  ggtitle("Day 7")
+
+grid.arrange(p.rich.t1.treat.sd, p.rich.t2.treat.sd, p.rich.t3.treat.sd, ncol = 3)
+grid.arrange(p.rich.t1.treat, p.rich.t2.treat, p.rich.t3.treat, p.rich.t1.treat.sd, p.rich.t2.treat.sd, p.rich.t3.treat.sd, ncol = 3, nrow = 2)
+
+```
