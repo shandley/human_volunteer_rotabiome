@@ -61,22 +61,22 @@ ps0
 # Load mapping file
 map <- import_qiime_sample_data("~/Dropbox/Research/human_volunteer/data/human_volunteer_mapping_USE.txt")
 ps0 <- merge_phyloseq(ps0, map)
+ps0
 
 # View sample variables & generate basic stats
 sample_variables(ps0)
-summary(sample_sums(ps0))
 sd(sample_sums(ps0))
+get_taxa_unique(ps0, "Phylum")
 
 ```
-
 ##Factor reordering and renaming
 
 ```{r factor-adjustments}
-# Factor re-ordering, relabelling, etc.
-
 # Order randomization arms 
 sample_data(ps0)$randomization_arm
-sample_data(ps0)$randomization_arm <- factor(sample_data(ps0)$randomization_arm, levels = c("No Antibiotics", "Narrow Spectrum Antibiotics", "Broad Spectrum Antibiotics"))
+sample_data(ps0)$randomization_arm <- factor(sample_data(ps0)$randomization_arm, levels = c("No_antibiotics", "Narrow_spectrum_antibiotics", "Broad_spectrum_antibiotics"))
+sample_data(ps0)$randomization_arm
+sample_data(ps0)$randomization_arm <- factor(sample_data(ps0)$randomization_arm, labels = c("No antibiotics", "Narrow spectrum antibiotics", "Broad spectrum antibiotics"))
 sample_data(ps0)$randomization_arm
 
 ```
@@ -122,6 +122,8 @@ grid.arrange(p.reads, p.reads.hist, ncol = 2)
 summary(sample_sums(ps0))
 
 ```
+There appear to be quite a few samples with low numbers of ASVs. Examination in next code chunk will reveal a threshold for removing samples.
+
 ##Bad sample identification and removal
 
 ```{r sample-removal-identification}
@@ -156,6 +158,8 @@ ps0
 min(sample_sums(ps0))
 
 ```
+There does not appear to be a relationship between low numbers of ASVs, treatment or time-point. So removing samples that behave unexpectedly (< 100 sequences).
+
 ##Overall sample relationship to evaluate sample outliers
 
 ```{r outlier-sample-evaluation}
@@ -172,6 +176,7 @@ p.MDS.outlier
 # There is no distiguishable feature to identify samples as obvious outliers using this projection. No samples will be removed based on MDS of Bray-curtis distances.
 
 ```
+There is no distiguishable feature to identify samples as obvious outliers using this projection. No samples will be removed based on MDS of Bray-curtis distances.
 ##Prevalence assessment and taxon filtering
 
 ```{r prevalence-assessment}
