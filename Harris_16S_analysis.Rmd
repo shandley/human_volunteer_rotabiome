@@ -588,7 +588,7 @@ Alpha diversity is not dependent on age, BMI, pre pneumo IgA, pre tetanus IgA or
 
 ```{r beta-diversity}
 # Ordination
-ord.ps1.wuni <- ordinate(ps1.log, method = "PCoA", distance = "wunifrac")
+ord.ps1.wuni <- ordinate(ps1.log, method = "PCoA", distance = "unifrac")
 
 # PCoA plot
 p.ord <- plot_ordination(ps1.log, ord.ps1.wuni, color = "randomization_arm") +
