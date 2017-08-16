@@ -681,8 +681,11 @@ doadonis(ps1.t1, "randomization_arm")
 doadonis(ps1.t2, "randomization_arm")
 doadonis(ps1.t3, "randomization_arm")
 
-```
+doadonis(ps1.con, "day")
+doadonis(ps1.narrow, "day")
+doadonis(ps1.broad, "day")
 
+```
 ##Random forest feature selection
 
 ```{r random-forest}
