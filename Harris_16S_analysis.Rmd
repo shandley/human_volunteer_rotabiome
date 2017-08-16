@@ -158,7 +158,13 @@ p.ss.boxplot<- ggplot(ss.df, aes_string(x, y = "RSVs")) + # x is what you assign
 p.ss.boxplot
 
 # Remove samples with fewer than 100 sequences
-ps0 <- prune_samples(sample_sums(ps0)>=100, ps0)
+# Save samples that fell below the selected threshold
+ps.failed <- prune_samples(sample_sums(ps0)<y, ps0)
+ps.failed
+failed.samples <- data.frame(sample_names(ps.failed), sample_data(ps.failed)$sample_ID, sample_data(ps.failed)$tube_ID)
+write.table(failed.samples, file = "./results/failed_sampels.txt", sep = "\t")
+
+ps0 <- prune_samples(sample_sums(ps0)>=y, ps0)
 ps0
 min(sample_sums(ps0))
 
