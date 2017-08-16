@@ -584,61 +584,6 @@ ancova(richness_0~tetanus_IgG_pre*day, data = ps1.rich)
 ```
 Alpha diversity is not dependent on age, BMI, pre pneumo IgA, pre tetanus IgA or pre-rotavirus IgA for any of the three treatment groups. 
 
-##Intra versus inter sample dissimilarity analysis
-
-```{r intra-inter, include=FALSE, eval=FALSE}
-# Intra = within (same patient)
-# Inter = between (across patients)
-
-# Convert to otu table
-veganotu = function(physeq) {
-
-  OTU = otu_table(physeq)
-  if (taxa_are_rows(OTU)) {
-    OTU = t(OTU)
-  }
-  return(as(OTU, "matrix"))
-}
-
-otu.table <- veganotu(ps1)
-otu.table.t1 <- veganotu(ps1.d_9)
-otu.table.t2 <- veganotu(ps1.d0)
-otu.table.t3 <- veganotu(ps1.d7)
-
-# Hellinger standardization
-dat.hell <- decostand(otu.table, method = "hellinger")
-dat.hell.t1 <- decostand(otu.table.t1, method = "hellinger")
-dat.hell.t2 <- decostand(otu.table.t2, method = "hellinger")
-dat.hell.t3 <- decostand(otu.table.t3, method = "hellinger")
-
-# Bray-curtis dissimilarity matrix calculation
-dist.hell <- vegdist(dat.hell, method = "bray")
-dist.hell.t1 <- vegdist(dat.hell.t1, method = "bray")
-dist.hell.t2 <- vegdist(dat.hell.t2, method = "bray")
-dist.hell.t3 <- vegdist(dat.hell.t3, method = "bray")
-
-write.table(as.matrix(dist.hell), file = "./results/dist_hell_bray.txt", sep = "\t")
-
-# Pairwise dissimilarity calculations
-pair.hell <- data.frame(t(combn(rownames(as.matrix(dist.hell)),2, simplify = TRUE)), as.numeric(dist.hell))
-head(pair.hell)
-write.table(pair.hell, file = "./results/pair_hell.txt", sep = "\t")
-
-pair.hell.t1 <- data.frame(t(combn(rownames(as.matrix(dist.hell.t1)),2, simplify = TRUE)), as.numeric(dist.hell.t1))
-head(pair.hell.t1)
-write.table(pair.hell.t1, file = "./results/pair_hell_t1.txt", sep = "\t")
-
-pair.hell.t2 <- data.frame(t(combn(rownames(as.matrix(dist.hell.t2)),2, simplify = TRUE)), as.numeric(dist.hell.t2))
-head(pair.hell.t2)
-write.table(pair.hell.t2, file = "./results/pair_hell_t2.txt", sep = "\t")
-
-pair.hell.t3 <- data.frame(t(combn(rownames(as.matrix(dist.hell.t3)),2, simplify = TRUE)), as.numeric(dist.hell.t3))
-head(pair.hell.t3)
-write.table(pair.hell.t2, file = "./results/pair_hell_t3.txt", sep = "\t")
-
-# Note: the intrasample Bray-Curtis values were extracted by hand in the exported dissimilarity matrix. Need to sort out how to automate this, but for a small number of samples this was a simple solution.
-
-```
 ##Beta diversity analysis
 
 ```{r beta-diversity}
