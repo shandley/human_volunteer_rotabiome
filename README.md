@@ -15,3 +15,9 @@ Antibiotics were provided from 3 to 9 days prior to vaccination with the followi
 * Tetanus
 
 Vaccination outcome was determined by a combination of fecal and serum antibody tests at periods for 28 days. Stool was collected at Day -9 (antibiotic initiation), Day 0 (vaccine administration) and Day 7 (post-vaccination) and subjected to 16S rRNA gene amplicon sequencing. Samples were demultiplexed and preprocessed with dada2 to extract amplicon sequence varaints (ASVs). ASVs were analyzed using R with heavy reliance on PhyloSeq.
+
+## Sample failure rate
+
+There was an unexpectedly high failure rate on the initital sequencing run with 50 out of the 172 sample failing to produce enough sequences to pass processing in dada2.
+
+These samples are being resequenced with an additioanl set of pretreatment samples.
