@@ -584,21 +584,6 @@ ancova(richness_0~tetanus_IgG_pre*day, data = ps1.rich)
 ```
 Alpha diversity is not dependent on age, BMI, pre pneumo IgA, pre tetanus IgA or pre-rotavirus IgA for any of the three treatment groups. 
 
-##Alpha diversity regression
-
-```{r alpha-diversity-regression, include=FALSE, eval=FALSE}
-cor.age <- round(cor.test(sample_data(ps1.rich.t1)$diversities_shannon, sample_data(ps1.rich.t1)$Age)$p.value,4)
-p.regr.sd.t1.age <- plot_regression(diversities_shannon ~ Age, meta(ps1.rich.t1), B=500, show.lm = TRUE, spag = TRUE, shade = FALSE) +
-  ggtitle("Pre-treatment (Day -9)") +
-  ylab("Shannon Diversity") +
-  xlab("Age") +
-  ylim(0,5) +
-  xlim(18,34) +
-  annotate("text", x = 30, y = 2.5, label = cor.age) +
-  theme(legend.position = "none")
-p.regr.sd.t1.age
-
-```
 ##Intra versus inter sample dissimilarity analysis
 
 ```{r intra-inter, include=FALSE, eval=FALSE}
