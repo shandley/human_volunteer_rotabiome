@@ -184,8 +184,6 @@ p.MDS.outlier <- plot_ordination(ps0, out.bray, color = "randomization_arm", axe
   stat_ellipse(type = "norm", geom = "polygon", alpha = 1/10, aes(fill = randomization_arm))
 p.MDS.outlier
 
-# There is no distiguishable feature to identify samples as obvious outliers using this projection. No samples will be removed based on MDS of Bray-curtis distances.
-
 ```
 There is no distiguishable feature to identify samples as obvious outliers using this projection. No samples will be removed based on MDS of Bray-curtis distances.
 
@@ -204,6 +202,7 @@ ps1 <- ps0 %>%
 ps1 # Confirm that the taxa were removed
 
 # Intermediate data subsetting for prevelance plotting
+# Full subsetting with removal of zero count data will be performed in a subsequent chunk
 ps1.d_9 <- subset_samples(ps1, day == "Pre")
 ps1.d0 <- subset_samples(ps1, day == "0")
 ps1.d7 <- subset_samples(ps1, day == "7")
@@ -305,7 +304,7 @@ p.log <- qplot(log10(rowSums(otu_table(ps1)))) +
 grid.arrange(p.nolog, p.log, ncol = 2)
 
 ```
-Log10 transformation does tend to shift the data to normality. Should consider using log10 transformed data for future analysis.
+Log10 transformation does tend to shift the data to normality, but it is not striking and may 'overshift' the data. Should consider using log10 transformed data for future analysis, but consider other transformations as needed.
 
 ##Subsetting
 
@@ -375,13 +374,13 @@ ps1_phylum.t1 <- ps1.t1 %>%
   arrange(Phylum)                                      # Sort data frame alphabetically by phylum
 
 # Convert Sample No to a factor because R is weird sometime
-ps1_phylum.t1$sample_ID <- as.factor(ps1_phylum.t1$sample_ID)
+ps1_phylum.t1$patient_ID <- as.factor(ps1_phylum.t1$patient_ID)
 
 # Creat a Phyla level table for external analysis
 # write.table(ps1_phylum, file = "./results/phylum.txt", sep="\t")
 
 # Plot - Phylum - Time 1 (Day -9)
-p.comm.bar.t1 <- ggplot(ps1_phylum.t1, aes(x = sample_ID, y = Abundance, fill = Phylum)) + 
+p.comm.bar.t1 <- ggplot(ps1_phylum.t1, aes(x = patient_ID, y = Abundance, fill = Phylum)) + 
   geom_bar(stat = "identity") +
   facet_wrap(~randomization_arm, scales = "free_x") +
   ggtitle("Day -9\nAbundant Phylum (> 3%) in All Samples") +
@@ -402,13 +401,13 @@ ps1_phylum.t2 <- ps1.t2 %>%
   arrange(Phylum)                                      # Sort data frame alphabetically by phylum
 
 # Convert Sample No to a factor because R is weird sometime
-ps1_phylum.t2$sample_ID <- as.factor(ps1_phylum.t2$sample_ID)
+ps1_phylum.t2$patient_ID <- as.factor(ps1_phylum.t2$patient_ID)
 
 # Creat a Phyla level table for external analysis
 # write.table(ps1_phylum, file = "./results/phylum.txt", sep="\t")
 
 # Plot - Phylum - Time 2 (Day 0)
-p.comm.bar.t2 <- ggplot(ps1_phylum.t2, aes(x = sample_ID, y = Abundance, fill = Phylum)) + 
+p.comm.bar.t2 <- ggplot(ps1_phylum.t2, aes(x = patient_ID, y = Abundance, fill = Phylum)) + 
   geom_bar(stat = "identity") +
   facet_wrap(~randomization_arm, scales = "free_x") +
   ggtitle("Day 0\nAbundant Phylum (> 3%) in All Samples") +
@@ -429,13 +428,13 @@ ps1_phylum.t3 <- ps1.t3 %>%
   arrange(Phylum)                                      # Sort data frame alphabetically by phylum
 
 # Convert Sample No to a factor because R is weird sometime
-ps1_phylum.t3$sample_ID <- as.factor(ps1_phylum.t3$sample_ID)
+ps1_phylum.t3$patient_ID <- as.factor(ps1_phylum.t3$patient_ID)
 
 # Creat a Phyla level table for external analysis
 # write.table(ps1_phylum, file = "./results/phylum.txt", sep="\t")
 
 # Plot - Phylum - Time 3 (Day 7)
-p.comm.bar.t3 <- ggplot(ps1_phylum.t3, aes(x = sample_ID, y = Abundance, fill = Phylum)) + 
+p.comm.bar.t3 <- ggplot(ps1_phylum.t3, aes(x = patient_ID, y = Abundance, fill = Phylum)) + 
   geom_bar(stat = "identity") +
   facet_wrap(~randomization_arm, scales = "free_x") +
   ggtitle("Day 7\nAbundant Phylum (> 3%) in All Samples") +
@@ -460,6 +459,8 @@ ggplotly(p.comm.bar.t3)
 grid.arrange(p.comm.bar.t1, p.comm.bar.t2, p.comm.bar.t3, nrow = 3)
 
 ```
+Similar to the prevalence plots, there is a notable alteration in the Bacteroidetes and Firmicutes in antibiotic treated samples at Day 0. This is still noticeable at Day 7, but the Firmicutes are making somewhat of a comeback. Proteobacteria invade following antibiotic treatment as well, but are largely absent, particularly in the narrow spectrum antibiotic samples after 7 days. Overall, the restoration to the pre-antibiotic bacterial microbiome appears to be more prominent following narrow spectrum treatment than in broad spectrum treatment. 
+
 ##Alpha diversity summary information generation
 
 ```{r add-sample-data}
@@ -474,7 +475,6 @@ ps1.rich <- merge(sd.1, diversity, by ="row.names") # merge sd.1 by row names
 ps1.rich$divergence <- divergence(ps1)
 
 ```
-
 ##Alpha diversity - categorical analysis
 
 ```{r alpha-diversity-day-treatment-richness}
@@ -519,6 +519,8 @@ grid.arrange(p.rich.t1.treat, p.rich.t2.treat, p.rich.t3.treat, ncol = 3)
 
 ```
 
+Richness (the number of taxa) is similar in all pretreatment sample groups. The number of taxa is greatly diminished in narrow and broad spectrum treatment samples compared to controls at day 0. This difference dissapears by day 7 when the number of bacterial taxa becomes similar between all treatment groups.
+
 ```{r alpha-diversity-day-treatment-shannon_div}
 p.rich.t1.treat.sd <- ggboxplot(ps1.rich.t1, x = "randomization_arm", y = "diversities_shannon", outlier.shape = NA) +
   geom_jitter(width = 0.2) +
@@ -548,17 +550,40 @@ p.rich.t3.treat.sd <- ggboxplot(ps1.rich.t3, x = "randomization_arm", y = "diver
   ggtitle("Day 7")
 
 grid.arrange(p.rich.t1.treat.sd, p.rich.t2.treat.sd, p.rich.t3.treat.sd, ncol = 3)
-grid.arrange(p.rich.t1.treat, p.rich.t2.treat, p.rich.t3.treat, p.rich.t1.treat.sd, p.rich.t2.treat.sd, p.rich.t3.treat.sd, ncol = 3, nrow = 2)
+# grid.arrange(p.rich.t1.treat, p.rich.t2.treat, p.rich.t3.treat, p.rich.t1.treat.sd, p.rich.t2.treat.sd, p.rich.t3.treat.sd, ncol = 3, nrow = 2)
 
 ```
+
+Similar to richness, the diversity is similar in all pre-treatment samples. Diversity is decreased in both narrow and broad spectrum treated samples, but is restored by day 7. 
+
 ##ANCOVA analysis
 
 ```{r ANCOVA-BMI, include=FALSE, eval=FALSE}
+# Test for age dependency on alpha diversity
+# Age per time point
+ancova(diversities_shannon~Age*day, data = ps1.rich)
+ancova(richness_0~Age*day, data = ps1.rich)
+
 # BMI
-ancova(diversities_shannon~Age*randomization_arm, data = ps1.rich)
-ancova(richness_0~Age*randomization_arm, data = ps1.rich)
+ancova(diversities_shannon~BMIcalc*day, data = ps1.rich)
+ancova(richness_0~BMIcalc*day, data = ps1.rich)
+
+# pre_RV_IgA
+ps1.rich[, 91:94] <- log(ps1.rich[91:94], 2)
+ancova(diversities_shannon~pre_RV_IgA*day, data = ps1.rich)
+ancova(richness_0~pre_RV_IgA*day, data = ps1.rich)
+
+# pneumo_IgA_pre
+ancova(diversities_shannon~pneumo_IgA_pre*day, data = ps1.rich)
+ancova(richness_0~pneumo_IgA_pre*day, data = ps1.rich)
+
+# tetanus_IgG_pre
+ancova(diversities_shannon~tetanus_IgG_pre*day, data = ps1.rich)
+ancova(richness_0~tetanus_IgG_pre*day, data = ps1.rich)
 
 ```
+Alpha diversity is not dependent on age, BMI, pre pneumo IgA, pre tetanus IgA or pre-rotavirus IgA for any of the three treatment groups. 
+
 ##Alpha diversity regression
 
 ```{r alpha-diversity-regression, include=FALSE, eval=FALSE}
