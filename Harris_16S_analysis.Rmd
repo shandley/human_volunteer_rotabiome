@@ -12,7 +12,7 @@ knitr::opts_chunk$set(fig.width=8,
                       warning=FALSE,
                       message=FALSE)
 ```
-## Initiate environment
+##Initiate environment
 
 ```{r initiate-environment}
 library("tidyverse")
@@ -85,7 +85,7 @@ sample_data(ps0)$day <- factor(sample_data(ps0)$day, levels = c("Pre", "0", "7")
 sample_data(ps0)$day
 
 ```
-## ASV summary statistics
+##ASV summary statistics
 
 ```{r data-assessment}
 # Create a new data frame of the sorted row sums, a column of sorted values from 1 to the total number of individuals/counts for each RSV and a categorical variable stating these are all RSVs.
@@ -454,7 +454,7 @@ ggplotly(p.comm.bar.t3)
 grid.arrange(p.comm.bar.t1, p.comm.bar.t2, p.comm.bar.t3, nrow = 3)
 
 ```
-## Alpha diversity summary information generation
+##Alpha diversity summary information generation
 
 ```{r add-sample-data}
 # Diversity
@@ -556,7 +556,7 @@ grid.arrange(p.rich.t1.treat.sd, p.rich.t2.treat.sd, p.rich.t3.treat.sd, ncol = 
 grid.arrange(p.rich.t1.treat, p.rich.t2.treat, p.rich.t3.treat, p.rich.t1.treat.sd, p.rich.t2.treat.sd, p.rich.t3.treat.sd, ncol = 3, nrow = 2)
 
 ```
-# ANCOVA analysis
+##ANCOVA analysis
 
 ```{r ANCOVA-BMI, include=FALSE, eval=FALSE}
 # BMI
@@ -564,22 +564,22 @@ ancova(diversities_shannon~Age*randomization_arm, data = ps1.rich)
 ancova(richness_0~Age*randomization_arm, data = ps1.rich)
 
 ```
-# Alpha diversity regression
+##Alpha diversity regression
 
 ```{r alpha-diversity-regression, include=FALSE, eval=FALSE}
-cor <- round(cor.test(sample_data(ps1.rich.t1)$diversities_shannon, sample_data(ps1.rich.t1)$Age)$p.value,4)
+cor.age <- round(cor.test(sample_data(ps1.rich.t1)$diversities_shannon, sample_data(ps1.rich.t1)$Age)$p.value,4)
 p.regr.sd.t1.age <- plot_regression(diversities_shannon ~ Age, meta(ps1.rich.t1), B=500, show.lm = TRUE, spag = TRUE, shade = FALSE) +
   ggtitle("Pre-treatment (Day -9)") +
   ylab("Shannon Diversity") +
   xlab("Age") +
   ylim(0,5) +
   xlim(18,34) +
-  annotate("text", x = 30, y = 2.5, label = cor) +
+  annotate("text", x = 30, y = 2.5, label = cor.age) +
   theme(legend.position = "none")
 p.regr.sd.t1.age
 
 ```
-## Intra versus inter sample dissimilarity analysis
+##Intra versus inter sample dissimilarity analysis
 
 ```{r intra-inter, include=FALSE, eval=FALSE}
 # Intra = within (same patient)
@@ -634,7 +634,6 @@ write.table(pair.hell.t2, file = "./results/pair_hell_t3.txt", sep = "\t")
 # Note: the intrasample Bray-Curtis values were extracted by hand in the exported dissimilarity matrix. Need to sort out how to automate this, but for a small number of samples this was a simple solution.
 
 ```
-
 ##Beta diversity analysis
 
 ```{r beta-diversity}
