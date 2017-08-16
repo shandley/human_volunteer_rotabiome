@@ -474,18 +474,7 @@ ps1.rich <- merge(sd.1, diversity, by ="row.names") # merge sd.1 by row names
 ps1.rich$divergence <- divergence(ps1)
 
 ```
-##Metadata analysis
 
-```{r metadata-plots}
-# Frequency plots
-plot_frequencies(sample_data(ps1), "day", "randomization_arm")
-plot_frequencies(sample_data(ps1), "Ethnicity", "randomization_arm")
-plot_frequencies(sample_data(ps1), "Asthma", "randomization_arm")
-plot_frequencies(sample_data(ps1), "Eczema", "randomization_arm")
-plot_frequencies(sample_data(ps1), "Hayfever", "randomization_arm")
-plot_frequencies(sample_data(ps1), "Allergies", "randomization_arm")
-
-```
 ##Alpha diversity - categorical analysis
 
 ```{r alpha-diversity-day-treatment-richness}
