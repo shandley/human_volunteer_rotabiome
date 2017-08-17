@@ -815,45 +815,57 @@ anova(cap_ord)
 
 ```{r diffab-pre-vs-day0}
 ps1.pre_d0 <- subset_samples(ps1, day != "7")
+ps1.pre_d0.con <- subset_samples(ps1.pre_d0, randomization_arm == "No antibiotics")
+ps1.pre_d0.con
 
-# Differential Abundance - Week
-ds <- phyloseq_to_deseq2(ps1.pre_d0, ~randomization_arm)
-dds <- DESeq(ds, test="Wald", fitType="parametric", betaPrior = FALSE) # Worth trying parametric and local fitTypes
-res.dds.week = results(dds.week, cooksCutoff = FALSE)
+# Convert phyloseq to deseq2
+ds.pre_d0.con <- phyloseq_to_deseq2(ps1.pre_d0.con, ~d7_roto_boost)
+
+# Calculate geometric means prior to estimate size factors
+gm_mean = function(x, na.rm=TRUE){
+  exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
+}
+
+geoMeans.pre_d0.con <- apply(counts(ds.pre_d0.con), 1, gm_mean)
+diagdds.pre_d0.con <- estimateSizeFactors(ds.pre_d0.con, geoMeans = geoMeans.pre_d0.con)
+diagdds.pre_d0.con <- DESeq(diagdds.pre_d0.con, test="Wald", fitType="parametric", betaPrior = FALSE)
+
+# Tabulate results
+res.dds.pre_d0.con = results(diagdds.pre_d0.con, cooksCutoff = FALSE)
 alpha = 0.1 # Note: this is higher to try and allow even weak effect size taxa through
-sigtab_dds.week = res.dds.week[which(res.dds.week$padj < alpha), ]
-head(sigtab_dds.week)
+sigtab_dds.pre_d0.con = res.dds.pre_d0.con[which(res.dds.pre_d0.con$padj < alpha), ]
+head(sigtab_dds.pre_d0.con)
 
-write.table(sigtab_dds.week, file="./results/deseq_results_week.txt", sep = "\t")
+write.table(sigtab_dds.pre_d0.con, file="./results/deseq_results_pre_d0_con.txt", sep = "\t")
 
 # Quick check of factor levels
 # Factor on the right will be on the left in the volcano plots. Relevel to switch
-mcols(res.dds.week, use.names = TRUE)
+mcols(res.dds.pre_d0.con, use.names = TRUE)
 
 # Create volcano plots of signficant results
 # Prepare to join results data.table and taxonomy table
-resdt.week = data.table(as(results(dds.week, cooksCutoff = FALSE), "data.frame"),
+resdt.pre_d0.con <- data.table(as(results(diagdds.pre_d0.con, cooksCutoff = FALSE), "data.frame"),
                    keep.rownames = TRUE)
-setnames(resdt.week, "rn", "OTU")
-taxdt.week = data.table(data.frame(as(tax_table(ps1), "matrix")), keep.rownames = TRUE)
-setnames(taxdt.week, "rn", "OTU")
+setnames(resdt.pre_d0.con, "rn", "OTU")
+taxdt.pre_d0.con = data.table(data.frame(as(tax_table(ps1.pre_d0.con), "matrix")), keep.rownames = TRUE)
+setnames(taxdt.pre_d0.con, "rn", "OTU")
 
 # Join results data.table and taxonomy table
-setkeyv(taxdt.week, "OTU")
-setkeyv(resdt.week, "OTU")
-resdt.week <- taxdt.week[resdt.week]
-resdt.week[, Significant := padj < alpha]
-resdt.week[!is.na(Significant)]
+setkeyv(taxdt.pre_d0.con, "OTU")
+setkeyv(resdt.pre_d0.con, "OTU")
+resdt.pre_d0.con <- taxdt.pre_d0.con[resdt.pre_d0.con]
+resdt.pre_d0.con[, Significant := padj < alpha]
+resdt.pre_d0.con[!is.na(Significant)]
 
-volcano.week = ggplot(
-  data = resdt.week[!is.na(Significant)][(pvalue < 1)],
+volcano.pre_d0.con <- ggplot(
+  data = resdt.pre_d0.con[!is.na(Significant)][(pvalue < 1)],
   mapping = aes(x = log2FoldChange,
                 y = -log10(pvalue),
                 color = Phylum,
                 label = OTU, label1 = Genus)) +
   theme_bw() +
   geom_point() + 
-  geom_point(data = resdt.week[(Significant)], size = 7, alpha = 0.7) + 
+  geom_point(data = resdt.pre_d0.con[(Significant)], size = 7, alpha = 0.7) + 
   # geom_text(data = resdt.base[(Significant)], mapping = aes(label = paste("Genus:", Genus)), color = "black", size = 3) +
   theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) +
   geom_hline(yintercept = -log10(alpha)) +
@@ -862,7 +874,7 @@ volcano.week = ggplot(
   theme(axis.text = element_text(size=12)) +
   theme(legend.text = element_text(size=12)) +
   geom_vline(xintercept = 0, lty = 2)
-volcano.week
+volcano.pre_d0.con
 
 # Generate interactive plot
 ggplotly(volcano.week)
