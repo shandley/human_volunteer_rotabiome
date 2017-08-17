@@ -493,7 +493,7 @@ p.rich.t1.treat <- ggboxplot(ps1.rich.t1, x = "randomization_arm", y = "richness
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   stat_compare_means(comparisons = my_comparisons) +
   # stat_compare_means(label.y = 255) +
-  ggtitle("Day -9")
+  ggtitle("Pre-antibiotics")
 
 p.rich.t2.treat <- ggboxplot(ps1.rich.t2, x = "randomization_arm", y = "richness_0", outlier.shape = NA) +
   geom_jitter(width = 0.2) +
@@ -521,9 +521,74 @@ grid.arrange(p.rich.t1.treat, p.rich.t2.treat, p.rich.t3.treat, ncol = 3)
 
 Richness (the number of taxa) is similar in all pretreatment sample groups. The number of taxa is greatly diminished in narrow and broad spectrum treatment samples compared to controls at day 0. This difference dissapears by day 7 when the number of bacterial taxa becomes similar between all treatment groups.
 
+```{r alpha-diversity-day7-roto-boost-richness}
+p.rich.t1.d7_roto_boost <- ggboxplot(ps1.rich.t1, x = "d7_roto_boost", y = "richness_0", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylim(0,260) +
+  ylab("Richness") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means() +
+  ggtitle("Pre-antibiotics")
+
+p.rich.t2.d7_roto_boost <- ggboxplot(ps1.rich.t2, x = "d7_roto_boost", y = "richness_0", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylim(0,260) +
+  ylab("Richness") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means() +
+  ggtitle("Day 0")
+
+p.rich.t3.d7_roto_boost <- ggboxplot(ps1.rich.t3, x = "d7_roto_boost", y = "richness_0", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylim(0,260) +
+  ylab("Richness") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means() +
+  ggtitle("Day 7")
+
+grid.arrange(p.rich.t1.d7_roto_boost, p.rich.t2.d7_roto_boost, p.rich.t3.d7_roto_boost, ncol = 3)
+
+```
+
+```{r alpha-diversity-day7-roto-boost-shannon-div}
+p.sd.t1.d7_roto_boost <- ggboxplot(ps1.rich.t1, x = "d7_roto_boost", y = "diversities_shannon", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylim(0,5) +
+  ylab("Shannon Diversity") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means() +
+  ggtitle("Pre-antibiotics")
+
+p.sd.t2.d7_roto_boost <- ggboxplot(ps1.rich.t2, x = "d7_roto_boost", y = "diversities_shannon", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylim(0,5) +
+  ylab("Shannon Diversity") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means() +
+  ggtitle("Day 0")
+
+p.sd.t3.d7_roto_boost <- ggboxplot(ps1.rich.t3, x = "d7_roto_boost", y = "diversities_shannon", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylim(0,5) +
+  ylab("Shannon Diversity") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means() +
+  ggtitle("Day 7")
+
+grid.arrange(p.sd.t1.d7_roto_boost, p.sd.t2.d7_roto_boost, p.sd.t3.d7_roto_boost, ncol = 3)
+
+```
+
 ```{r alpha-diversity-day-treatment-shannon_div}
 p.rich.t1.treat.sd <- ggboxplot(ps1.rich.t1, x = "randomization_arm", y = "diversities_shannon", outlier.shape = NA) +
   geom_jitter(width = 0.2) +
+  ylim(0,5) +
   ylab("Shannon Diversity") +
   theme(axis.title.x = element_blank()) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
@@ -533,6 +598,7 @@ p.rich.t1.treat.sd <- ggboxplot(ps1.rich.t1, x = "randomization_arm", y = "diver
 
 p.rich.t2.treat.sd <- ggboxplot(ps1.rich.t2, x = "randomization_arm", y = "diversities_shannon", outlier.shape = NA) +
   geom_jitter(width = 0.2) +
+  ylim(0,5) +
   ylab("Shannon Diversity") +
   theme(axis.title.x = element_blank()) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
@@ -542,6 +608,7 @@ p.rich.t2.treat.sd <- ggboxplot(ps1.rich.t2, x = "randomization_arm", y = "diver
 
 p.rich.t3.treat.sd <- ggboxplot(ps1.rich.t3, x = "randomization_arm", y = "diversities_shannon", outlier.shape = NA) +
   geom_jitter(width = 0.2) +
+  ylim(0,5) +
   ylab("Shannon Diversity") +
   theme(axis.title.x = element_blank()) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
@@ -586,19 +653,32 @@ Alpha diversity is not dependent on age, BMI, pre pneumo IgA, pre tetanus IgA or
 
 ##Beta diversity analysis
 
-```{r beta-diversity}
+```{r beta-diversity-arm}
 # Ordination
-ord.ps1.wuni <- ordinate(ps1.log, method = "PCoA", distance = "unifrac")
+ord.ps1.wuni <- ordinate(ps1.log, method = "PCoA", distance = "wunifrac")
 
 # PCoA plot
-p.ord <- plot_ordination(ps1.log, ord.ps1.wuni, color = "randomization_arm") +
+p.ord.arm <- plot_ordination(ps1.log, ord.ps1.wuni, color = "randomization_arm") +
   geom_point(size=3, alpha = 0.7) +
   scale_color_brewer(palette = "Dark2") +
   geom_point(colour = "grey50", size = 1.5) +
   facet_grid(~ day) +
   stat_ellipse(geom = "polygon", alpha = 1/15, aes(fill = randomization_arm)) +
   labs(color = "randomization_arm")
-p.ord
+p.ord.arm
+
+```
+
+```{r beta-diversity-d7-rv-boost}
+# PCoA plot
+p.ord.d7_boost <- plot_ordination(ps1.log, ord.ps1.wuni, color = "d7_roto_boost") +
+  geom_point(size=3, alpha = 0.7) +
+  scale_color_brewer(palette = "Dark2") +
+  geom_point(colour = "grey50", size = 1.5) +
+  facet_grid(~ day) +
+  stat_ellipse(geom = "polygon", alpha = 1/15, aes(fill = d7_roto_boost)) +
+  labs(color = "d7_roto_boost")
+p.ord.d7_boost
 
 ```
 ##Premanova significance testing (ADONIS)
@@ -635,6 +715,10 @@ doadonis(ps1.con, "day")
 doadonis(ps1.narrow, "day")
 doadonis(ps1.broad, "day")
 
+doadonis(ps1.t1, "d7_roto_boost")
+doadonis(ps1.t2, "d7_roto_boost")
+doadonis(ps1.t3, "d7_roto_boost")
+
 ```
 ##Random forest feature selection
 
@@ -642,7 +726,7 @@ doadonis(ps1.broad, "day")
 library(reshape2)
 set.seed(2)
 # Day 0 samples
-output.forest.t2 <- randomForest(richness_0 ~ pneumo_IgA_7 + d7_RV_IgA + d14_RV_IgA + d28_RV_IgA + pneumo_IgA_pre + pneumo_IgA_7 + pneumo_IgA_14 + pneumo_IgA_28 + tetanus_IgG_pre + tetanus_IgG_d7 + tetanus_IgG_d14 + tetanus_IgG_d28, na.action = na.omit, data = ps1.rich.t2)
+output.forest.t2 <- randomForest(randomization_arm ~ pneumo_IgG_7 + d7_RV_IgA + d14_RV_IgA + d28_RV_IgA + pneumo_IgG_pre + pneumo_IgG_7 + pneumo_IgG_14 + pneumo_IgG_28 + tetanus_IgG_pre + tetanus_IgG_d7 + tetanus_IgG_d14 + tetanus_IgG_d28, na.action = na.omit, data = ps1.rich.t2)
 print(output.forest.t2)
 
 importance(output.forest.t2, type = 2)
@@ -665,14 +749,14 @@ p.rf.t2
 
 ```{r CCA}
 # Calculate distance    
-bray.cca <- phyloseq::distance(physeq = ps1.t2, method = "bray")
+bray.cca <- phyloseq::distance(physeq = ps1.t1, method = "bray")
 
 # CAP ordinate
 cap_ord <- ordinate(
     physeq = ps1.t2, 
     method = "CAP",
     distance = bray.cca,
-    formula = ~ tetanus_IgG_pre + tetanus_IgG_d7 + tetanus_IgG_d14 + tetanus_IgG_d28 + pneumo_IgA_pre + pneumo_IgA_7 + pneumo_IgA_14 + pneumo_IgA_28 + pre_RV_IgA + d7_RV_IgA + d14_RV_IgA + d28_RV_IgA
+    formula = ~ tetanus_IgG_pre + tetanus_IgG_d7 + tetanus_IgG_d14 + tetanus_IgG_d28 + pneumo_IgG_pre + pneumo_IgG_7 + pneumo_IgG_14 + pneumo_IgG_28 + pre_RV_IgA + d7_RV_IgA + d14_RV_IgA + d28_RV_IgA
 )
 
 # CAP plot
@@ -727,7 +811,6 @@ cap_plot +
 anova(cap_ord)
 
 ```
-
 ##Differential abundance testing - Randomization Arm - Pre vs. Day 0
 
 ```{r diffab-pre-vs-day0}
