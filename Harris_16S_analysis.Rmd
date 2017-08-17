@@ -874,7 +874,7 @@ volcano.pre_d0.con <- ggplot(
   # geom_text(data = resdt.base[(Significant)], mapping = aes(label = paste("Genus:", Genus)), color = "black", size = 3) +
   theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) +
   geom_hline(yintercept = -log10(alpha)) +
-  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nBaseline Samples") +
+  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nControl") +
   theme(axis.title = element_text(size=12)) +
   theme(axis.text = element_text(size=12)) +
   theme(legend.text = element_text(size=12)) +
@@ -937,7 +937,7 @@ volcano.pre_d0.narrow <- ggplot(
   # geom_text(data = resdt.base[(Significant)], mapping = aes(label = paste("Genus:", Genus)), color = "black", size = 3) +
   theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) +
   geom_hline(yintercept = -log10(alpha)) +
-  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nBaseline Samples") +
+  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nNarrow Spectrum Antibiotics") +
   theme(axis.title = element_text(size=12)) +
   theme(axis.text = element_text(size=12)) +
   theme(legend.text = element_text(size=12)) +
@@ -1000,7 +1000,7 @@ volcano.pre_d0.broad <- ggplot(
   # geom_text(data = resdt.base[(Significant)], mapping = aes(label = paste("Genus:", Genus)), color = "black", size = 3) +
   theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) +
   geom_hline(yintercept = -log10(alpha)) +
-  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nBaseline Samples") +
+  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nBroad Spectrum Antibiotics") +
   theme(axis.title = element_text(size=12)) +
   theme(axis.text = element_text(size=12)) +
   theme(legend.text = element_text(size=12)) +
@@ -1009,6 +1009,11 @@ volcano.pre_d0.broad
 
 # Generate interactive plot
 ggplotly(volcano.pre_d0.broad)
+
+```
+
+```{r pre-d0-plot-grid}
+grid.arrange(volcano.pre_d0.con, volcano.pre_d0.narrow, volcano.pre_d0.broad, ncol = 3)
 
 ```
 
@@ -1060,7 +1065,7 @@ volcano.d0.rota_boost <- ggplot(
   # geom_text(data = resdt.base[(Significant)], mapping = aes(label = paste("Genus:", Genus)), color = "black", size = 3) +
   theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) +
   geom_hline(yintercept = -log10(alpha)) +
-  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nBaseline Samples") +
+  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nDay 0 ~ Rotavirus Boost") +
   theme(axis.title = element_text(size=12)) +
   theme(axis.text = element_text(size=12)) +
   theme(legend.text = element_text(size=12)) +
@@ -1071,4 +1076,5 @@ volcano.d0.rota_boost
 ggplotly(volcano.d0.rota_boost)
 
 ```
+
 
