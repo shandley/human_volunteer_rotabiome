@@ -813,13 +813,18 @@ anova(cap_ord)
 ```
 ##Differential abundance testing - Randomization Arm - Pre vs. Day 0
 
-```{r diffab-pre-vs-day0}
+```{r diffab-pre-vs-day0-control}
 ps1.pre_d0 <- subset_samples(ps1, day != "7")
+ps1.pre_d0
+ps1.pre_d0 <- prune_samples(sample_sums(ps1.pre_d0) > 0, ps1.pre_d0)
+ps1.pre_d0
 ps1.pre_d0.con <- subset_samples(ps1.pre_d0, randomization_arm == "No antibiotics")
+ps1.pre_d0.con
+ps1.pre_d0.con <- prune_samples(sample_sums(ps1.pre_d0.con) > 0, ps1.pre_d0.con)
 ps1.pre_d0.con
 
 # Convert phyloseq to deseq2
-ds.pre_d0.con <- phyloseq_to_deseq2(ps1.pre_d0.con, ~d7_roto_boost)
+ds.pre_d0.con <- phyloseq_to_deseq2(ps1.pre_d0.con, ~day)
 
 # Calculate geometric means prior to estimate size factors
 gm_mean = function(x, na.rm=TRUE){
@@ -832,7 +837,7 @@ diagdds.pre_d0.con <- DESeq(diagdds.pre_d0.con, test="Wald", fitType="parametric
 
 # Tabulate results
 res.dds.pre_d0.con = results(diagdds.pre_d0.con, cooksCutoff = FALSE)
-alpha = 0.1 # Note: this is higher to try and allow even weak effect size taxa through
+alpha = 0.05 # Note: this is higher to try and allow even weak effect size taxa through
 sigtab_dds.pre_d0.con = res.dds.pre_d0.con[which(res.dds.pre_d0.con$padj < alpha), ]
 head(sigtab_dds.pre_d0.con)
 
@@ -877,6 +882,193 @@ volcano.pre_d0.con <- ggplot(
 volcano.pre_d0.con
 
 # Generate interactive plot
-ggplotly(volcano.week)
+ggplotly(volcano.pre_d0.con)
 
 ```
+
+```{r diffab-pre-vs-day0-narrow-spectrum-Abx}
+ps1.pre_d0.narrow <- subset_samples(ps1.pre_d0, randomization_arm == "Narrow spectrum antibiotics")
+ps1.pre_d0.narrow
+
+# narrowvert phyloseq to deseq2
+ds.pre_d0.narrow <- phyloseq_to_deseq2(ps1.pre_d0.narrow, ~day)
+
+# Calculate geometric means prior to estimate size factors
+geoMeans.pre_d0.narrow <- apply(counts(ds.pre_d0.narrow), 1, gm_mean)
+diagdds.pre_d0.narrow <- estimateSizeFactors(ds.pre_d0.narrow, geoMeans = geoMeans.pre_d0.narrow)
+diagdds.pre_d0.narrow <- DESeq(diagdds.pre_d0.narrow, test="Wald", fitType="parametric", betaPrior = FALSE)
+
+# Tabulate results
+res.dds.pre_d0.narrow = results(diagdds.pre_d0.narrow, cooksCutoff = FALSE)
+alpha = 0.05 # Note: this is higher to try and allow even weak effect size taxa through
+sigtab_dds.pre_d0.narrow = res.dds.pre_d0.narrow[which(res.dds.pre_d0.narrow$padj < alpha), ]
+head(sigtab_dds.pre_d0.narrow)
+
+write.table(sigtab_dds.pre_d0.narrow, file="./results/deseq_results_pre_d0_narrow.txt", sep = "\t")
+
+# Quick check of factor levels
+# Factor on the right will be on the left in the volcano plots. Relevel to switch
+mcols(res.dds.pre_d0.narrow, use.names = TRUE)
+
+# Create volcano plots of signficant results
+# Prepare to join results data.table and taxonomy table
+resdt.pre_d0.narrow <- data.table(as(results(diagdds.pre_d0.narrow, cooksCutoff = FALSE), "data.frame"),
+                   keep.rownames = TRUE)
+setnames(resdt.pre_d0.narrow, "rn", "OTU")
+taxdt.pre_d0.narrow = data.table(data.frame(as(tax_table(ps1.pre_d0.narrow), "matrix")), keep.rownames = TRUE)
+setnames(taxdt.pre_d0.narrow, "rn", "OTU")
+
+# Join results data.table and taxonomy table
+setkeyv(taxdt.pre_d0.narrow, "OTU")
+setkeyv(resdt.pre_d0.narrow, "OTU")
+resdt.pre_d0.narrow <- taxdt.pre_d0.narrow[resdt.pre_d0.narrow]
+resdt.pre_d0.narrow[, Significant := padj < alpha]
+resdt.pre_d0.narrow[!is.na(Significant)]
+
+volcano.pre_d0.narrow <- ggplot(
+  data = resdt.pre_d0.narrow[!is.na(Significant)][(pvalue < 1)],
+  mapping = aes(x = log2FoldChange,
+                y = -log10(pvalue),
+                color = Phylum,
+                label = OTU, label1 = Genus)) +
+  theme_bw() +
+  geom_point() + 
+  geom_point(data = resdt.pre_d0.narrow[(Significant)], size = 7, alpha = 0.7) + 
+  # geom_text(data = resdt.base[(Significant)], mapping = aes(label = paste("Genus:", Genus)), color = "black", size = 3) +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) +
+  geom_hline(yintercept = -log10(alpha)) +
+  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nBaseline Samples") +
+  theme(axis.title = element_text(size=12)) +
+  theme(axis.text = element_text(size=12)) +
+  theme(legend.text = element_text(size=12)) +
+  geom_vline(xintercept = 0, lty = 2)
+volcano.pre_d0.narrow
+
+# Generate interactive plot
+ggplotly(volcano.pre_d0.narrow)
+
+```
+
+```{r diffab-pre-vs-day0-broad-spectrum-Abx}
+ps1.pre_d0.broad <- subset_samples(ps1.pre_d0, randomization_arm == "Broad spectrum antibiotics")
+ps1.pre_d0.broad
+
+# broadvert phyloseq to deseq2
+ds.pre_d0.broad <- phyloseq_to_deseq2(ps1.pre_d0.broad, ~day)
+
+# Calculate geometric means prior to estimate size factors
+geoMeans.pre_d0.broad <- apply(counts(ds.pre_d0.broad), 1, gm_mean)
+diagdds.pre_d0.broad <- estimateSizeFactors(ds.pre_d0.broad, geoMeans = geoMeans.pre_d0.broad)
+diagdds.pre_d0.broad <- DESeq(diagdds.pre_d0.broad, test="Wald", fitType="parametric", betaPrior = FALSE)
+
+# Tabulate results
+res.dds.pre_d0.broad = results(diagdds.pre_d0.broad, cooksCutoff = FALSE)
+alpha = 0.05 # Note: this is higher to try and allow even weak effect size taxa through
+sigtab_dds.pre_d0.broad = res.dds.pre_d0.broad[which(res.dds.pre_d0.broad$padj < alpha), ]
+head(sigtab_dds.pre_d0.broad)
+
+write.table(sigtab_dds.pre_d0.broad, file="./results/deseq_results_pre_d0_broad.txt", sep = "\t")
+
+# Quick check of factor levels
+# Factor on the right will be on the left in the volcano plots. Relevel to switch
+mcols(res.dds.pre_d0.broad, use.names = TRUE)
+
+# Create volcano plots of signficant results
+# Prepare to join results data.table and taxonomy table
+resdt.pre_d0.broad <- data.table(as(results(diagdds.pre_d0.broad, cooksCutoff = FALSE), "data.frame"),
+                   keep.rownames = TRUE)
+setnames(resdt.pre_d0.broad, "rn", "OTU")
+taxdt.pre_d0.broad = data.table(data.frame(as(tax_table(ps1.pre_d0.broad), "matrix")), keep.rownames = TRUE)
+setnames(taxdt.pre_d0.broad, "rn", "OTU")
+
+# Join results data.table and taxonomy table
+setkeyv(taxdt.pre_d0.broad, "OTU")
+setkeyv(resdt.pre_d0.broad, "OTU")
+resdt.pre_d0.broad <- taxdt.pre_d0.broad[resdt.pre_d0.broad]
+resdt.pre_d0.broad[, Significant := padj < alpha]
+resdt.pre_d0.broad[!is.na(Significant)]
+
+volcano.pre_d0.broad <- ggplot(
+  data = resdt.pre_d0.broad[!is.na(Significant)][(pvalue < 1)],
+  mapping = aes(x = log2FoldChange,
+                y = -log10(pvalue),
+                color = Phylum,
+                label = OTU, label1 = Genus)) +
+  theme_bw() +
+  geom_point() + 
+  geom_point(data = resdt.pre_d0.broad[(Significant)], size = 7, alpha = 0.7) + 
+  # geom_text(data = resdt.base[(Significant)], mapping = aes(label = paste("Genus:", Genus)), color = "black", size = 3) +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) +
+  geom_hline(yintercept = -log10(alpha)) +
+  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nBaseline Samples") +
+  theme(axis.title = element_text(size=12)) +
+  theme(axis.text = element_text(size=12)) +
+  theme(legend.text = element_text(size=12)) +
+  geom_vline(xintercept = 0, lty = 2)
+volcano.pre_d0.broad
+
+# Generate interactive plot
+ggplotly(volcano.pre_d0.broad)
+
+```
+
+```{r diffab-pre-vs-day0-rota-boost}
+# rota_boostvert phyloseq to deseq2
+ds.d0.rota_boost <- phyloseq_to_deseq2(ps1.t1, ~d7_roto_boost)
+
+# Calculate geometric means prior to estimate size factors
+geoMeans.d0.rota_boost <- apply(counts(ds.d0.rota_boost), 1, gm_mean)
+diagdds.d0.rota_boost <- estimateSizeFactors(ds.d0.rota_boost, geoMeans = geoMeans.d0.rota_boost)
+diagdds.d0.rota_boost <- DESeq(diagdds.d0.rota_boost, test="Wald", fitType="parametric", betaPrior = FALSE)
+
+# Tabulate results
+res.dds.d0.rota_boost = results(diagdds.d0.rota_boost, cooksCutoff = FALSE)
+alpha = 0.05 # Note: this is higher to try and allow even weak effect size taxa through
+sigtab_dds.d0.rota_boost = res.dds.d0.rota_boost[which(res.dds.d0.rota_boost$padj < alpha), ]
+head(sigtab_dds.d0.rota_boost)
+
+write.table(sigtab_dds.d0.rota_boost, file="./results/deseq_results_d0_rota_boost.txt", sep = "\t")
+
+# Quick check of factor levels
+# Factor on the right will be on the left in the volcano plots. Relevel to switch
+mcols(res.dds.d0.rota_boost, use.names = TRUE)
+
+# Create volcano plots of signficant results
+# Prepare to join results data.table and taxonomy table
+resdt.d0.rota_boost <- data.table(as(results(diagdds.d0.rota_boost, cooksCutoff = FALSE), "data.frame"),
+                   keep.rownames = TRUE)
+setnames(resdt.d0.rota_boost, "rn", "OTU")
+taxdt.d0.rota_boost = data.table(data.frame(as(tax_table(ps1.t1), "matrix")), keep.rownames = TRUE)
+setnames(taxdt.d0.rota_boost, "rn", "OTU")
+
+# Join results data.table and taxonomy table
+setkeyv(taxdt.d0.rota_boost, "OTU")
+setkeyv(resdt.d0.rota_boost, "OTU")
+resdt.d0.rota_boost <- taxdt.d0.rota_boost[resdt.d0.rota_boost]
+resdt.d0.rota_boost[, Significant := padj < alpha]
+resdt.d0.rota_boost[!is.na(Significant)]
+
+volcano.d0.rota_boost <- ggplot(
+  data = resdt.d0.rota_boost[!is.na(Significant)][(pvalue < 1)],
+  mapping = aes(x = log2FoldChange,
+                y = -log10(pvalue),
+                color = Phylum,
+                label = OTU, label1 = Genus)) +
+  theme_bw() +
+  geom_point() + 
+  geom_point(data = resdt.d0.rota_boost[(Significant)], size = 7, alpha = 0.7) + 
+  # geom_text(data = resdt.base[(Significant)], mapping = aes(label = paste("Genus:", Genus)), color = "black", size = 3) +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) +
+  geom_hline(yintercept = -log10(alpha)) +
+  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nBaseline Samples") +
+  theme(axis.title = element_text(size=12)) +
+  theme(axis.text = element_text(size=12)) +
+  theme(legend.text = element_text(size=12)) +
+  geom_vline(xintercept = 0, lty = 2)
+volcano.d0.rota_boost
+
+# Generate interactive plot
+ggplotly(volcano.d0.rota_boost)
+
+```
+
