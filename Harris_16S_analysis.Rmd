@@ -560,6 +560,8 @@ grid.arrange(p.rich.t1.treat, p.rich.t2.treat, p.rich.t3.treat, p.rich.t1.treat.
 
 Richness (the number of taxa) and Shannon diversity is similar in all pretreatment sample groups. The number of taxa is greatly diminished in narrow and broad spectrum treatment samples compared to controls at day 0. This difference dissapears by day 7 when the number of bacterial taxa becomes similar between all treatment groups.
 
+Similar to richness, the diversity is similar in all pre-treatment samples. Diversity is decreased in both narrow and broad spectrum treated samples, but is restored by day 7. 
+
 ##Alpha diversity and day 7 rotovirus Day 7 IgA boost
 
 IgA boost defined as a greater than or equal to 2 fold change between pre-rotovirus IgA levels and Day 7 IgA levels.
@@ -661,8 +663,8 @@ grid.arrange(p.rich.t1.d7_roto_boost.treatment, p.rich.t2.d7_roto_boost.treatmen
 ```{r alpha-diversity-day7-roto-boost-diversity}
 p.sd.t1.d7_roto_boost.treatment <- ggboxplot(ps1.rich.t1, x = "d7_roto_boost", y = "diversities_shannon", outlier.shape = NA, facet.by = "randomization_arm") +
   geom_jitter(width = 0.2) +
-  ylim(0,260) +
-  ylab("sdness") +
+  ylim(0,5) +
+  ylab("Shannon diversity") +
   theme(axis.title.x = element_blank()) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   stat_compare_means(label = "p.format") +
@@ -670,8 +672,8 @@ p.sd.t1.d7_roto_boost.treatment <- ggboxplot(ps1.rich.t1, x = "d7_roto_boost", y
 
 p.sd.t2.d7_roto_boost.treatment <- ggboxplot(ps1.rich.t2, x = "d7_roto_boost", y = "diversities_shannon", outlier.shape = NA, facet.by = "randomization_arm") +
   geom_jitter(width = 0.2) +
-  ylim(0,260) +
-  ylab("sdness") +
+  ylim(0,5) +
+  ylab("Shannon diversity") +
   theme(axis.title.x = element_blank()) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   stat_compare_means(label = "p.format") +
@@ -679,8 +681,8 @@ p.sd.t2.d7_roto_boost.treatment <- ggboxplot(ps1.rich.t2, x = "d7_roto_boost", y
 
 p.sd.t3.d7_roto_boost.treatment <- ggboxplot(ps1.rich.t3, x = "d7_roto_boost", y = "diversities_shannon", outlier.shape = NA, facet.by = "randomization_arm") +
   geom_jitter(width = 0.2) +
-  ylim(0,260) +
-  ylab("sdness") +
+  ylim(0,5) +
+  ylab("Shannon diversity") +
   theme(axis.title.x = element_blank()) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   stat_compare_means(label = "p.format") +
@@ -689,8 +691,7 @@ p.sd.t3.d7_roto_boost.treatment <- ggboxplot(ps1.rich.t3, x = "d7_roto_boost", y
 grid.arrange(p.sd.t1.d7_roto_boost.treatment, p.sd.t2.d7_roto_boost.treatment, p.sd.t3.d7_roto_boost.treatment, nrow = 3)
 
 ```
-
-Similar to richness, the diversity is similar in all pre-treatment samples. Diversity is decreased in both narrow and broad spectrum treated samples, but is restored by day 7. 
+Alpha diversity (both richness and Shannon diversity) are similar in subjects with >= or <= 2 fold change in rotavirus IgA titers 
 
 ##ANCOVA analysis
 
@@ -705,21 +706,31 @@ ancova(diversities_shannon~BMIcalc*day, data = ps1.rich)
 ancova(richness_0~BMIcalc*day, data = ps1.rich)
 
 # pre_RV_IgA
-ps1.rich[, 91:94] <- log(ps1.rich[91:94], 2)
+ps1.rich[, 90:92] <- log(ps1.rich[90:92], 2)
 ancova(diversities_shannon~pre_RV_IgA*day, data = ps1.rich)
 ancova(richness_0~pre_RV_IgA*day, data = ps1.rich)
 
+# d7_RV_IgA
+ancova(diversities_shannon~d7_RV_IgA_boost_fc*day, data = ps1.rich)
+
 # pneumo_IgA_pre
-ancova(diversities_shannon~pneumo_IgA_pre*day, data = ps1.rich)
+ancova(diversities_shannon~pneumo_IgG_pre*day, data = ps1.rich)
 ancova(richness_0~pneumo_IgA_pre*day, data = ps1.rich)
+
+# pneumo_IgG_7vPre
+ancova(diversities_shannon~pneumo_IgG_7vPre*day, data = ps1.rich)
+ancova(richness_0~pneumo_IgG_7vPre*day, data = ps1.rich)
 
 # tetanus_IgG_pre
 ancova(diversities_shannon~tetanus_IgG_pre*day, data = ps1.rich)
 ancova(richness_0~tetanus_IgG_pre*day, data = ps1.rich)
 
+# tetanus_IgG_14vPre
+ancova(diversities_shannon~tetanus_IgG_14vPre*day, data = ps1.rich)
+ancova(richness_0~tetanus_IgG_14vPre*day, data = ps1.rich)
+
 ```
 Alpha diversity is not dependent on age, BMI, pre pneumo IgA, pre tetanus IgA or pre-rotavirus IgA for any of the three treatment groups. 
-
 ##Beta diversity analysis
 
 ```{r beta-diversity-arm}
@@ -791,11 +802,12 @@ doadonis(ps1.t3, "d7_roto_boost")
 ```
 ##Random forest feature selection
 
-```{r random-forest}
+Work in progress. Currently not evaluated.
+```{r random-forest, eval=FALSE, include=FALSE}
 library(reshape2)
 set.seed(2)
 # Day 0 samples
-output.forest.t2 <- randomForest(randomization_arm ~ pneumo_IgG_7 + d7_RV_IgA + d14_RV_IgA + d28_RV_IgA + pneumo_IgG_pre + pneumo_IgG_7 + pneumo_IgG_14 + pneumo_IgG_28 + tetanus_IgG_pre + tetanus_IgG_d7 + tetanus_IgG_d14 + tetanus_IgG_d28, na.action = na.omit, data = ps1.rich.t2)
+output.forest.t2 <- randomForest(d7_roto_boost ~ pre_RV_IgA + d7_RV_IgA + d14_RV_IgA, na.action = na.omit, data = ps1.rich.t2)
 print(output.forest.t2)
 
 importance(output.forest.t2, type = 2)
@@ -816,21 +828,23 @@ p.rf.t2
 
 ## Constrained correspondance analysis
 
-```{r CCA}
+Evaluated a number of models, but not identifying any associations. Not including for now.
+
+```{r CCA, eval=FALSE, include=FALSE}
 # Calculate distance    
-bray.cca <- phyloseq::distance(physeq = ps1.t1, method = "bray")
+bray.cca <- phyloseq::distance(physeq = ps1.t3, method = "bray")
 
 # CAP ordinate
 cap_ord <- ordinate(
-    physeq = ps1.t2, 
+    physeq = ps1.t3, 
     method = "CAP",
     distance = bray.cca,
-    formula = ~ tetanus_IgG_pre + tetanus_IgG_d7 + tetanus_IgG_d14 + tetanus_IgG_d28 + pneumo_IgG_pre + pneumo_IgG_7 + pneumo_IgG_14 + pneumo_IgG_28 + pre_RV_IgA + d7_RV_IgA + d14_RV_IgA + d28_RV_IgA
+    formula = ~ pre_RV_IgA + d7_RV_IgA + d14_RV_IgA
 )
 
 # CAP plot
 cap_plot <- plot_ordination(
-  physeq = ps1.t2, 
+  physeq = ps1.t3, 
   ordination = cap_ord, 
     color = "randomization_arm", 
     axes = c(1,2)
@@ -1087,6 +1101,33 @@ grid.arrange(volcano.pre_d0.con, volcano.pre_d0.narrow, volcano.pre_d0.broad, nc
 ```
 
 ```{r diffab-pre-vs-day0-rota-boost}
+# Adjust fold-change naming
+# DeSeq2 requires only letters and numbers in the factor level names
+sample_data(ps1)$d7_roto_boost
+sample_data(ps1)$d7_roto_boost <- factor(sample_data(ps1)$d7_roto_boost, labels = c("No", "Yes"))
+sample_data(ps1)$d7_roto_boost
+
+# Time 1 (Day -9)
+ps1.t1 <- subset_samples(ps1, day == "Pre")
+ps1.t1
+ps1.t1 <- prune_samples(sample_sums(ps1.t1) > 0, ps1.t1)
+ps1.t1
+ps1.t1.log <- transform_sample_counts(ps1.t1, function(x) log(1 + x))
+
+# Time 2 (Day 0)
+ps1.t2 <- subset_samples(ps1, day == "0")
+ps1.t2
+ps1.t2 <- prune_samples(sample_sums(ps1.t2) > 0, ps1.t2)
+ps1.t2
+ps1.t2.log <- transform_sample_counts(ps1.t2, function(x) log(1 + x))
+
+# Time 3 (Day 7)
+ps1.t3 <- subset_samples(ps1, day == "7")
+ps1.t3
+ps1.t3 <- prune_samples(sample_sums(ps1.t3) > 0, ps1.t3)
+ps1.t3
+ps1.t3.log <- transform_sample_counts(ps1.t3, function(x) log(1 + x))
+
 # rota_boostvert phyloseq to deseq2
 ds.d0.rota_boost <- phyloseq_to_deseq2(ps1.t1, ~d7_roto_boost)
 
@@ -1107,7 +1148,7 @@ write.table(sigtab_dds.d0.rota_boost, file="./results/deseq_results_d0_rota_boos
 # Factor on the right will be on the left in the volcano plots. Relevel to switch
 mcols(res.dds.d0.rota_boost, use.names = TRUE)
 
-d# Create volcano plots of signficant results
+# Create volcano plots of signficant results
 # Prepare to join results data.table and taxonomy table
 resdt.d0.rota_boost <- data.table(as(results(diagdds.d0.rota_boost, cooksCutoff = FALSE), "data.frame"),
                    keep.rownames = TRUE)
@@ -1143,6 +1184,55 @@ volcano.d0.rota_boost
 
 # Generate interactive plot
 ggplotly(volcano.d0.rota_boost)
+
+```
+
+##Taxon specific barplots from DA taxa identified with DeSeq2
+
+```{r ground-truth}
+replace_counts = function(physeq, dds) {
+
+  dds_counts = counts(dds, normalized = TRUE)
+  if (!identical(taxa_names(physeq), rownames(dds_counts))) {
+    stop("OTU ids don't match")
+  }
+  otu_table(physeq) = otu_table(dds_counts, taxa_are_rows = TRUE)
+  return(physeq)
+
+}
+
+# Convert phyloseq to deseq2
+ds.all <- phyloseq_to_deseq2(ps1, ~day)
+
+geoMeans.ds.all <- apply(counts(ds.all), 1, gm_mean)
+diagdds.ds.all <- estimateSizeFactors(ds.all, geoMeans = geoMeans.ds.all)
+diagdds.ds.all <- DESeq(diagdds.ds.all, test="Wald", fitType="parametric", betaPrior = FALSE)
+
+## Transform
+# Convert raw counts to rlog normalized counts
+ps1.rlog <- replace_counts(ps1, diagdds.ds.all)
+
+## Subset
+# Genus = Dialister
+ps1_Dialister <- ps1.rlog %>%
+    subset_taxa(Genus == "Dialister") %>%
+    psmelt()
+# Subset deseq2 ID'd sequence
+ps1_Dialister.seq <- subset(ps1_Dialister, OTU == "GCAAGCGTTGTCCGGAATTATTGGGCGTAAAGCGCGCGCAGGCGGCTTCTTAAGTCCATCTTAAAAGTGCGGGGCTTAACCCCGTGATGGGATGGAAACTGAGAGGCTGGAGTATCGGAGAGGAAAGTGGAATTCCTAGTGTAGCGGTGAAATGCGTAGAGATTAGGAAGAACACCGGTGGCGAAGGCGACTTTCTGGACGACAACTGACGCTGAGGCGCGAAAGCGTGGGG")
+
+
+## Plot
+# Dialister boxplots
+p.dialister <- ggboxplot(ps1_Dialister.seq, x = "d7_roto_boost", y = "Abundance", outlier.shape = NA, add = "median_iqr", facet.by = "day") +
+  geom_jitter(mapping = aes(size = 2), alpha = 0.4, na.rm = TRUE, width = 0.3) +
+  scale_y_log10(breaks=c(0,1,10,100)) +
+  ylab("Abundance (rlog)") +
+  theme(axis.title.x = element_blank()) +
+  theme(legend.position = "NULL") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(method = "wilcox.test", label = "p.format") +
+  ggtitle("Dialister succinatiphilus")
+p.dialister
 
 ```
 
