@@ -1100,7 +1100,7 @@ grid.arrange(volcano.pre_d0.con, volcano.pre_d0.narrow, volcano.pre_d0.broad, nc
 
 ```
 
-```{r diffab-pre-vs-day0-rota-boost}
+```{r diffab-pre-rota-boost}
 # Adjust fold-change naming
 # DeSeq2 requires only letters and numbers in the factor level names
 sample_data(ps1)$d7_roto_boost
@@ -1129,7 +1129,68 @@ ps1.t3
 ps1.t3.log <- transform_sample_counts(ps1.t3, function(x) log(1 + x))
 
 # rota_boostvert phyloseq to deseq2
-ds.d0.rota_boost <- phyloseq_to_deseq2(ps1.t1, ~d7_roto_boost)
+ds.pre.rota_boost <- phyloseq_to_deseq2(ps1.t1, ~d7_roto_boost)
+
+# Calculate geometric means prior to estimate size factors
+geoMeans.pre.rota_boost <- apply(counts(ds.pre.rota_boost), 1, gm_mean)
+diagdds.pre.rota_boost <- estimateSizeFactors(ds.pre.rota_boost, geoMeans = geoMeans.pre.rota_boost)
+diagdds.pre.rota_boost <- DESeq(diagdds.pre.rota_boost, test="Wald", fitType="parametric", betaPrior = FALSE)
+
+# Tabulate results
+res.dds.pre.rota_boost = results(diagdds.pre.rota_boost, cooksCutoff = FALSE)
+alpha = 0.05 # Note: this is higher to try and allow even weak effect size taxa through
+sigtab_dds.pre.rota_boost = res.dds.pre.rota_boost[which(res.dds.pre.rota_boost$padj < alpha), ]
+head(sigtab_dds.pre.rota_boost)
+
+write.table(sigtab_dds.pre.rota_boost, file="./results/deseq_results_pre_rota_boost.txt", sep = "\t")
+
+# Quick check of factor levels
+# Factor on the right will be on the left in the volcano plots. Relevel to switch
+mcols(res.dds.pre.rota_boost, use.names = TRUE)
+
+# Create volcano plots of signficant results
+# Prepare to join results data.table and taxonomy table
+resdt.pre.rota_boost <- data.table(as(results(diagdds.pre.rota_boost, cooksCutoff = FALSE), "data.frame"),
+                   keep.rownames = TRUE)
+setnames(resdt.pre.rota_boost, "rn", "OTU")
+taxdt.pre.rota_boost = data.table(data.frame(as(tax_table(ps1.t1), "matrix")), keep.rownames = TRUE)
+setnames(taxdt.pre.rota_boost, "rn", "OTU")
+
+# Join results data.table and taxonomy table
+setkeyv(taxdt.pre.rota_boost, "OTU")
+setkeyv(resdt.pre.rota_boost, "OTU")
+resdt.pre.rota_boost <- taxdt.pre.rota_boost[resdt.pre.rota_boost]
+resdt.pre.rota_boost[, Significant := padj < alpha]
+resdt.pre.rota_boost[!is.na(Significant)]
+
+volcano.pre.rota_boost <- ggplot(
+  data = resdt.pre.rota_boost[!is.na(Significant)][(pvalue < 1)],
+  mapping = aes(x = log2FoldChange,
+                y = -log10(pvalue),
+                color = Phylum,
+                label = OTU, label1 = Genus)) +
+  theme_bw() +
+  geom_point() + 
+  geom_point(data = resdt.pre.rota_boost[(Significant)], size = 7, alpha = 0.7) + 
+  # geom_text(data = resdt.base[(Significant)], mapping = aes(label = paste("Genus:", Genus)), color = "black", size = 3) +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) +
+  geom_hline(yintercept = -log10(alpha)) +
+  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nPre-antibiotics ~ Rotavirus Boost") +
+  theme(axis.title = element_text(size=12)) +
+  theme(axis.text = element_text(size=12)) +
+  theme(legend.text = element_text(size=12)) +
+  geom_vline(xintercept = 0, lty = 2)
+volcano.pre.rota_boost
+
+# Generate interactive plot
+ggplotly(volcano.pre.rota_boost)
+
+```
+
+```{r}
+
+# rota_boostvert phyloseq to deseq2
+ds.d0.rota_boost <- phyloseq_to_deseq2(ps1.t2, ~d7_roto_boost)
 
 # Calculate geometric means prior to estimate size factors
 geoMeans.d0.rota_boost <- apply(counts(ds.d0.rota_boost), 1, gm_mean)
@@ -1220,12 +1281,67 @@ ps1_Dialister <- ps1.rlog %>%
 # Subset deseq2 ID'd sequence
 ps1_Dialister.seq <- subset(ps1_Dialister, OTU == "GCAAGCGTTGTCCGGAATTATTGGGCGTAAAGCGCGCGCAGGCGGCTTCTTAAGTCCATCTTAAAAGTGCGGGGCTTAACCCCGTGATGGGATGGAAACTGAGAGGCTGGAGTATCGGAGAGGAAAGTGGAATTCCTAGTGTAGCGGTGAAATGCGTAGAGATTAGGAAGAACACCGGTGGCGAAGGCGACTTTCTGGACGACAACTGACGCTGAGGCGCGAAAGCGTGGGG")
 
+# Genus = Prevotella
+ps1_Prevotella <- ps1.rlog %>%
+    subset_taxa(Genus == "Prevotella") %>%
+    psmelt()
+# Subset deseq2 ID'd sequence
+ps1_Corpi_99.seq <- subset(ps1_Prevotella, OTU == "CCGGGCGTTATCCGGATTTATTGGGTTTAAAGGGAGCGTAGGCCGGAGATTAAGCGTGTTGTGAAATGTAGATGCTCAACGTCTGCACTGCAGCGCGAACTGGTTTCCTTGAGTACGCACAAAGTGGGCGGAATTCGTGGTGTAGCGGTGAAATGCTTAGATATCACGAAGAACTCCGATTGCGAAGGCAGCTCACTGGAGCGCAACTGACGCTGAAGCTCGAAAGTGCGGGT")
+
+ps1_Corpi_98.seq <- subset(ps1_Prevotella, OTU == "CCAGGCGTTATCCGGATTTATTGGGTTTAAAGGGAGCGTAGGCCGGAGATTAAGCGTGTTGTGAAATGTAGATGCTCAACATCTGAACTGCAGCGCGAACTGGTTTCCTTGAGTACGCACAAAGTGGGCGGAATTCGTGGTGTAGCGGTGAAATGCTTAGATATCACGAAGAACTCCGATTGCGAAGGCAGCTCACTGGAGCGCAACTGACGCTGAAGCTCGAAAGTGCGGGT")
+
+# Genus = Prevotellamassilia | Family = Prevotellaceae
+ps1_Prevotellaceae <- ps1.rlog %>%
+    subset_taxa(Family == "Prevotellaceae") %>%
+    psmelt()
+# Subset deseq2 ID'd sequence
+ps1_Prevotellamassilia.seq <- subset(ps1_Prevotellaceae, OTU == "CCGGGCGTTATCCGGATTTATTGGGTTTAAAGGGAGCGCAGGCGGACCTTTAAGTCAGCTGTGAAATACGGCGGCTCAACCGTCGAACTGCAGTTGATACTGGAGGTCTTGAGTGCACACAGGGATGCTGGAATTCATGGTGTAGCGGTGAAATGCTCAGATATCATGAAGAACTCCGATCGCGAAGGCAGGCATCCGGGGTGCAACTGACGCTGAGGCTCGAAAGTGCGGGT")
+
+# Genus = Muribaculum | Class = Bacteroidia 
+ps1_Bacteroidia <- ps1.rlog %>%
+    subset_taxa(Class == "Bacteroidia") %>%
+    psmelt()
+# Subset deseq2 ID'd sequence
+ps1_Muribaculum.seq <- subset(ps1_Bacteroidia, OTU == "GCGAGCGTTATCCGGATTTATTGGGTTTAAAGGGAGCGCAGGCTGCGAGGCAAGTCAGCGGTCAAATGTCGGGGCTCAACCCCGGCCTGCCGTTGAAACTGTCCTGCTAGAGTTCGAGTGAGGTATGCGGAATGCGTTGTGTAGCGGTGAAATGCATAGATATGACGCAGAACTCCGATTGCGAAGGCAGCATACCAACTCGCGACTGACGCTGAGGCTCGAAAGCGTGGGT")
+
+ps1_Paraprevotella.seq <- subset(ps1_Bacteroidia, OTU == "GCGAGCGTTATCCGGATTTATTGGGTTTAAAGGGAGCGTAGGCGGGCTTTTAAGTCAGCGGTCAAATGCCACGGCTCAACCGTGGCCAGCCGTTGAAACTGCAAGCCTTGAGTCTGCACAGGGCACATGGAATTCGTGGTGTAGCGGTGAAATGCTTAGATATCACGAAGAACTCCGATCGCGAAGGCATTGTGCCGGGGCAGCACTGACGCTGAGGCTCGAAAGTGCGGGT")
+
+# Genus = Sporobacter
+ps1_Sporobacter <- ps1.rlog %>%
+    subset_taxa(Genus == "Sporobacter") %>%
+    psmelt()
+
+ps1_Sporobacter.seq <- subset(ps1_Sporobacter, OTU == "GCAAGCGTTGTCCGGATTTACTGGGTGTAAAGGGCGTGTAGGCGGAGATGCAAGTCAGATGTGAAATCCCCGGGCTTAACCCGGGAACTGCATTTGAAACTGTATCCCTTGAGTATCGGAGAGGCAGGCGGAATTCCTAGTGTAGCGGTGAAATGCGTAGATATTAGGAGGAACACCAGTGGCGAAGGCGGCCTGCTGGACGACAACTGACGCTGAGGCGCGAAAGCGTGGGG")
+
+# Genus Roseburia
+ps1_Roseburia <- ps1.rlog %>%
+    subset_taxa(Genus == "Roseburia") %>%
+    psmelt()
+ps1_Roseburia.seq <- subset(ps1_Roseburia, OTU == "GCAAGCGTTATCCGGATTTACTGGGTGTAAAGGGAGCGCAGGCGGTACGGCAAGTCTGATGTGAAAGCCCGGGGCTCAACCCCGGTACTGCATTGGAAACTGTCGGACTAGAGTGTCGGAGGGGTAAGTGGAATTCCTAGTGTAGCGGTGAAATGCGTAGATATTAGGAGGAACACCAGTGGCGAAGGCGGCTTACTGGACGATTACTGACGCTGAGGCTCGAAAGCGTGGGG")
+
+# Genus Pediococcus
+ps1_Pediococcus <- ps1.rlog %>%
+    subset_taxa(Genus == "Pediococcus") %>%
+    psmelt()
+ps1_Pediococcus.seq <- subset(ps1_Pediococcus, OTU == "GCAAGCGTTATCCGGATTTATTGGGCGTAAAGCGAGCGCAGGCGGTCTTTTAAGTCTAATGTGAAAGCCTTCGGCTCAACCGAAGAAGTGCATTGGAAACTGGGAGACTTGAGTGCAGAAGAGGACAGTGGAACTCCATGTGTAGCGGTGAAATGCGTAGATATATGGAAGAACACCAGTGGCGAAGGCGGCTGTCTGGTCTGCAACTGACGCTGAGGCTCGAAAGCATGGGT")
+
+# Genus Ruminococcus
+ps1_Ruminococcus <- ps1.rlog %>%
+    subset_taxa(Genus == "Ruminococcus") %>%
+    psmelt()
+ps1_Ruminococcus.seq <- subset(ps1_Ruminococcus, OTU =="GCAAGCGTTGTCCGGATTTACTGGGTGTAAAGGGTGCGTAGGCGGCTTTGCAAGTCAGATGTGAAATCTATGGGCTCAACCCATAAACTGCATTTGAAACTGTAGAGCTTGAGTGAAGTAGAGGCAGGCGGAATTCCCCGTGTAGCGGTGAAATGCGTAGAGATGGGGAGGAACACCAGTGGCGAAGGCGGCCTGCTGGGCTTTAACTGACGCTGAGGCACGAAAGCGTGGGT")
+
+# Genus Cloacibacillus
+ps1_Cloacibacillus <- ps1.rlog %>%
+    subset_taxa(Genus == "Cloacibacillus") %>%
+    psmelt()
+ps1_Cloacibacillus.seq <- subset(ps1_Cloacibacillus, OTU =="GCGAGCGTTGTTCGGAATTACTGGGCGTAAAGCGCACGCAGGCGGACCAGTAAGTCTGTCGTCAAAGGCGGAGGCTCAACCTTCGTTCCACGATAGATACTGCGGGTCTAGAGTATGTGAGAGGGAAGTGGAATTCCCGGTGTAGCGGTGAAATGCGTAGATATCGGGAGGAACACCAGTGGCGAAGGCGGCTTCCTGGCACACAACTGACGCTCATGTGCGAAAGCCAGGGC")
 
 ## Plot
 # Dialister boxplots
 p.dialister <- ggboxplot(ps1_Dialister.seq, x = "d7_roto_boost", y = "Abundance", outlier.shape = NA, add = "median_iqr", facet.by = "day") +
   geom_jitter(mapping = aes(size = 2), alpha = 0.4, na.rm = TRUE, width = 0.3) +
-  scale_y_log10(breaks=c(0,1,10,100)) +
+  scale_y_log10() +
   ylab("Abundance (rlog)") +
   theme(axis.title.x = element_blank()) +
   theme(legend.position = "NULL") +
@@ -1233,6 +1349,139 @@ p.dialister <- ggboxplot(ps1_Dialister.seq, x = "d7_roto_boost", y = "Abundance"
   stat_compare_means(method = "wilcox.test", label = "p.format") +
   ggtitle("Dialister succinatiphilus")
 p.dialister
+
+# ps1_Corpi_99.seq boxplots
+p.prevotella_corpi_99 <- ggboxplot(ps1_Corpi_99.seq, x = "d7_roto_boost", y = "Abundance", outlier.shape = NA, add = "median_iqr", facet.by = "day") +
+  geom_jitter(mapping = aes(size = 2), alpha = 0.4, na.rm = TRUE, width = 0.3) +
+  scale_y_log10() +
+  ylab("Abundance (rlog)") +
+  theme(axis.title.x = element_blank()) +
+  theme(legend.position = "NULL") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(method = "wilcox.test", label = "p.format") +
+  ggtitle("Prevotella corpi (99%)")
+p.prevotella_corpi_99
+
+# ps1_Corpi_98.seq boxplots
+p.prevotella_corpi_98 <- ggboxplot(ps1_Corpi_98.seq, x = "d7_roto_boost", y = "Abundance", outlier.shape = NA, add = "median_iqr", facet.by = "day") +
+  geom_jitter(mapping = aes(size = 2), alpha = 0.4, na.rm = TRUE, width = 0.3) +
+  scale_y_log10() +
+  ylab("Abundance (rlog)") +
+  theme(axis.title.x = element_blank()) +
+  theme(legend.position = "NULL") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(method = "wilcox.test", label = "p.format") +
+  ggtitle("Prevotella corpi (98%)")
+p.prevotella_corpi_98
+
+# ps1_Prevotellamassilia.seq
+p.Prevotellamassilia <- ggboxplot(ps1_Prevotellamassilia.seq, x = "d7_roto_boost", y = "Abundance", outlier.shape = NA, add = "median_iqr", facet.by = "day") +
+  geom_jitter(mapping = aes(size = 2), alpha = 0.4, na.rm = TRUE, width = 0.3) +
+  scale_y_log10() +
+  ylab("Abundance (rlog)") +
+  theme(axis.title.x = element_blank()) +
+  theme(legend.position = "NULL") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(method = "wilcox.test", label = "p.format") +
+  ggtitle("Prevotellamassilia timonensis")
+p.Prevotellamassilia
+
+# ps1_Muribaculum.seq
+p.Muribaculum <- ggboxplot(ps1_Muribaculum.seq, x = "d7_roto_boost", y = "Abundance", outlier.shape = NA, add = "median_iqr", facet.by = "day") +
+  geom_jitter(mapping = aes(size = 2), alpha = 0.4, na.rm = TRUE, width = 0.3) +
+  scale_y_log10() +
+  ylab("Abundance (rlog)") +
+  theme(axis.title.x = element_blank()) +
+  theme(legend.position = "NULL") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(method = "wilcox.test", label = "p.format") +
+  ggtitle("Muribaculum intestinale")
+p.Muribaculum
+
+# ps1_Sporobacter.seq
+p.Sporobacter <- ggboxplot(ps1_Sporobacter.seq, x = "d7_roto_boost", y = "Abundance", outlier.shape = NA, add = "median_iqr", facet.by = "day") +
+  geom_jitter(mapping = aes(size = 2), alpha = 0.4, na.rm = TRUE, width = 0.3) +
+  scale_y_log10() +
+  ylab("Abundance (rlog)") +
+  theme(axis.title.x = element_blank()) +
+  theme(legend.position = "NULL") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(method = "wilcox.test", label = "p.format") +
+  ggtitle("Sporobacter termitidis")
+p.Sporobacter
+
+# ps1_Paraprevotella.seq
+p.Paraprevotella <- ggboxplot(ps1_Paraprevotella.seq, x = "d7_roto_boost", y = "Abundance", outlier.shape = NA, add = "median_iqr", facet.by = "day") +
+  geom_jitter(mapping = aes(size = 2), alpha = 0.4, na.rm = TRUE, width = 0.3) +
+  scale_y_log10() +
+  ylab("Abundance (rlog)") +
+  theme(axis.title.x = element_blank()) +
+  theme(legend.position = "NULL") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(method = "wilcox.test", label = "p.format") +
+  ggtitle("Paraprevotella clara")
+p.Paraprevotella
+
+# ps1_Roseburia.seq
+p.Roseburia <- ggboxplot(ps1_Roseburia.seq, x = "d7_roto_boost", y = "Abundance", outlier.shape = NA, add = "median_iqr", facet.by = "day") +
+  geom_jitter(mapping = aes(size = 2), alpha = 0.4, na.rm = TRUE, width = 0.3) +
+  scale_y_log10() +
+  ylab("Abundance (rlog)") +
+  theme(axis.title.x = element_blank()) +
+  theme(legend.position = "NULL") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(method = "wilcox.test", label = "p.format") +
+  ggtitle("Roseburia intestinalis")
+p.Roseburia
+
+# ps1_Pediococcus.seq
+p.Pediococcus <- ggboxplot(ps1_Pediococcus.seq, x = "d7_roto_boost", y = "Abundance", outlier.shape = NA, add = "median_iqr", facet.by = "day") +
+  geom_jitter(mapping = aes(size = 2), alpha = 0.4, na.rm = TRUE, width = 0.3) +
+  scale_y_log10() +
+  ylab("Abundance (rlog)") +
+  theme(axis.title.x = element_blank()) +
+  theme(legend.position = "NULL") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(method = "wilcox.test", label = "p.format") +
+  ggtitle("Pediococcus stilesii")
+p.Pediococcus
+
+# ps1_Ruminococcus.seq
+p.Ruminococcus <- ggboxplot(ps1_Ruminococcus.seq, x = "d7_roto_boost", y = "Abundance", outlier.shape = NA, add = "median_iqr", facet.by = "day") +
+  geom_jitter(mapping = aes(size = 2), alpha = 0.4, na.rm = TRUE, width = 0.3) +
+  scale_y_log10() +
+  ylab("Abundance (rlog)") +
+  theme(axis.title.x = element_blank()) +
+  theme(legend.position = "NULL") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(method = "wilcox.test", label = "p.format") +
+  ggtitle("Ruminococcus bromii")
+p.Ruminococcus
+
+# ps1_Cloacibacillus.seq
+p.Cloacibacillus <- ggboxplot(ps1_Cloacibacillus.seq, x = "d7_roto_boost", y = "Abundance", outlier.shape = NA, add = "median_iqr", facet.by = "day") +
+  geom_jitter(mapping = aes(size = 2), alpha = 0.4, na.rm = TRUE, width = 0.3) +
+  scale_y_log10() +
+  ylab("Abundance (rlog)") +
+  theme(axis.title.x = element_blank()) +
+  theme(legend.position = "NULL") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(method = "wilcox.test", label = "p.format") +
+  ggtitle("Cloacibacillus evryensis")
+p.Cloacibacillus
+
+
+
+```
+
+```{r ground-truth-summary}
+grid.arrange(p.prevotella_corpi_99, p.Prevotellamassilia, p.dialister, nrow = 3)
+
+grid.arrange(p.prevotella_corpi_98, p.Paraprevotella, p.Sporobacter, p.Muribaculum, nrow = 4)
+
+grid.arrange(p.Roseburia, p.Pediococcus, p.Ruminococcus, nrow = 3)
+
+grid.arrange(p.Cloacibacillus, p.Prevotellamassilia, p.prevotella_corpi_99, nrow = 3)
 
 ```
 
