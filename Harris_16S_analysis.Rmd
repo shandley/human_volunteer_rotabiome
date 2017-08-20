@@ -84,6 +84,12 @@ sample_data(ps0)$day
 sample_data(ps0)$day <- factor(sample_data(ps0)$day, levels = c("Pre", "0", "7"))
 sample_data(ps0)$day
 
+# Adjust fold-change naming
+# Yes equates to >= 2 fold change, No is <= 2 fold change
+sample_data(ps0)$d7_roto_boost
+sample_data(ps0)$d7_roto_boost <- factor(sample_data(ps0)$d7_roto_boost, labels = c("< 2 f.c.", "> 2 f.c."))
+sample_data(ps0)$d7_roto_boost
+
 ```
 ##ASV summary statistics
 
@@ -515,77 +521,8 @@ p.rich.t3.treat <- ggboxplot(ps1.rich.t3, x = "randomization_arm", y = "richness
   # stat_compare_means(label.y = 255) +
   ggtitle("Day 7")
 
-grid.arrange(p.rich.t1.treat, p.rich.t2.treat, p.rich.t3.treat, ncol = 3)
+# grid.arrange(p.rich.t1.treat, p.rich.t2.treat, p.rich.t3.treat, ncol = 3)
 
-```
-
-Richness (the number of taxa) is similar in all pretreatment sample groups. The number of taxa is greatly diminished in narrow and broad spectrum treatment samples compared to controls at day 0. This difference dissapears by day 7 when the number of bacterial taxa becomes similar between all treatment groups.
-
-```{r alpha-diversity-day7-roto-boost-richness}
-p.rich.t1.d7_roto_boost <- ggboxplot(ps1.rich.t1, x = "d7_roto_boost", y = "richness_0", outlier.shape = NA) +
-  geom_jitter(width = 0.2) +
-  ylim(0,260) +
-  ylab("Richness") +
-  theme(axis.title.x = element_blank()) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  stat_compare_means() +
-  ggtitle("Pre-antibiotics")
-
-p.rich.t2.d7_roto_boost <- ggboxplot(ps1.rich.t2, x = "d7_roto_boost", y = "richness_0", outlier.shape = NA) +
-  geom_jitter(width = 0.2) +
-  ylim(0,260) +
-  ylab("Richness") +
-  theme(axis.title.x = element_blank()) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  stat_compare_means() +
-  ggtitle("Day 0")
-
-p.rich.t3.d7_roto_boost <- ggboxplot(ps1.rich.t3, x = "d7_roto_boost", y = "richness_0", outlier.shape = NA) +
-  geom_jitter(width = 0.2) +
-  ylim(0,260) +
-  ylab("Richness") +
-  theme(axis.title.x = element_blank()) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  stat_compare_means() +
-  ggtitle("Day 7")
-
-grid.arrange(p.rich.t1.d7_roto_boost, p.rich.t2.d7_roto_boost, p.rich.t3.d7_roto_boost, ncol = 3)
-
-```
-
-```{r alpha-diversity-day7-roto-boost-shannon-div}
-p.sd.t1.d7_roto_boost <- ggboxplot(ps1.rich.t1, x = "d7_roto_boost", y = "diversities_shannon", outlier.shape = NA) +
-  geom_jitter(width = 0.2) +
-  ylim(0,5) +
-  ylab("Shannon Diversity") +
-  theme(axis.title.x = element_blank()) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  stat_compare_means() +
-  ggtitle("Pre-antibiotics")
-
-p.sd.t2.d7_roto_boost <- ggboxplot(ps1.rich.t2, x = "d7_roto_boost", y = "diversities_shannon", outlier.shape = NA) +
-  geom_jitter(width = 0.2) +
-  ylim(0,5) +
-  ylab("Shannon Diversity") +
-  theme(axis.title.x = element_blank()) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  stat_compare_means() +
-  ggtitle("Day 0")
-
-p.sd.t3.d7_roto_boost <- ggboxplot(ps1.rich.t3, x = "d7_roto_boost", y = "diversities_shannon", outlier.shape = NA) +
-  geom_jitter(width = 0.2) +
-  ylim(0,5) +
-  ylab("Shannon Diversity") +
-  theme(axis.title.x = element_blank()) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  stat_compare_means() +
-  ggtitle("Day 7")
-
-grid.arrange(p.sd.t1.d7_roto_boost, p.sd.t2.d7_roto_boost, p.sd.t3.d7_roto_boost, ncol = 3)
-
-```
-
-```{r alpha-diversity-day-treatment-shannon_div}
 p.rich.t1.treat.sd <- ggboxplot(ps1.rich.t1, x = "randomization_arm", y = "diversities_shannon", outlier.shape = NA) +
   geom_jitter(width = 0.2) +
   ylim(0,5) +
@@ -616,8 +553,140 @@ p.rich.t3.treat.sd <- ggboxplot(ps1.rich.t3, x = "randomization_arm", y = "diver
   #stat_compare_means(label.y = 4.5) +
   ggtitle("Day 7")
 
-grid.arrange(p.rich.t1.treat.sd, p.rich.t2.treat.sd, p.rich.t3.treat.sd, ncol = 3)
-# grid.arrange(p.rich.t1.treat, p.rich.t2.treat, p.rich.t3.treat, p.rich.t1.treat.sd, p.rich.t2.treat.sd, p.rich.t3.treat.sd, ncol = 3, nrow = 2)
+# grid.arrange(p.rich.t1.treat.sd, p.rich.t2.treat.sd, p.rich.t3.treat.sd, ncol = 3)
+grid.arrange(p.rich.t1.treat, p.rich.t2.treat, p.rich.t3.treat, p.rich.t1.treat.sd, p.rich.t2.treat.sd, p.rich.t3.treat.sd, ncol = 3, nrow = 2)
+
+```
+
+Richness (the number of taxa) and Shannon diversity is similar in all pretreatment sample groups. The number of taxa is greatly diminished in narrow and broad spectrum treatment samples compared to controls at day 0. This difference dissapears by day 7 when the number of bacterial taxa becomes similar between all treatment groups.
+
+##Alpha diversity and day 7 rotovirus Day 7 IgA boost
+
+IgA boost defined as a greater than or equal to 2 fold change between pre-rotovirus IgA levels and Day 7 IgA levels.
+
+```{r alpha-diversity-day7-roto-boost-richness}
+p.rich.t1.d7_roto_boost <- ggboxplot(ps1.rich.t1, x = "d7_roto_boost", y = "richness_0", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylim(0,260) +
+  ylab("Richness") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means() +
+  ggtitle("Pre-antibiotics")
+
+p.rich.t2.d7_roto_boost <- ggboxplot(ps1.rich.t2, x = "d7_roto_boost", y = "richness_0", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylim(0,260) +
+  ylab("Richness") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means() +
+  ggtitle("Day 0")
+
+p.rich.t3.d7_roto_boost <- ggboxplot(ps1.rich.t3, x = "d7_roto_boost", y = "richness_0", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylim(0,260) +
+  ylab("Richness") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means() +
+  ggtitle("Day 7")
+
+# grid.arrange(p.rich.t1.d7_roto_boost, p.rich.t2.d7_roto_boost, p.rich.t3.d7_roto_boost, ncol = 3)
+
+p.sd.t1.d7_roto_boost <- ggboxplot(ps1.rich.t1, x = "d7_roto_boost", y = "diversities_shannon", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylim(0,5) +
+  ylab("Shannon Diversity") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means() +
+  ggtitle("Pre-antibiotics")
+
+p.sd.t2.d7_roto_boost <- ggboxplot(ps1.rich.t2, x = "d7_roto_boost", y = "diversities_shannon", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylim(0,5) +
+  ylab("Shannon Diversity") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means() +
+  ggtitle("Day 0")
+
+p.sd.t3.d7_roto_boost <- ggboxplot(ps1.rich.t3, x = "d7_roto_boost", y = "diversities_shannon", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylim(0,5) +
+  ylab("Shannon Diversity") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means() +
+  ggtitle("Day 7")
+
+#grid.arrange(p.sd.t1.d7_roto_boost, p.sd.t2.d7_roto_boost, p.sd.t3.d7_roto_boost, ncol = 3)
+grid.arrange(p.rich.t1.d7_roto_boost, p.rich.t2.d7_roto_boost, p.rich.t3.d7_roto_boost, p.sd.t1.d7_roto_boost, p.sd.t2.d7_roto_boost, p.sd.t3.d7_roto_boost, ncol = 3, nrow =2)
+
+```
+
+```{r alpha-diversity-day7-roto-boost-richness-treatment}
+p.rich.t1.d7_roto_boost.treatment <- ggboxplot(ps1.rich.t1, x = "d7_roto_boost", y = "richness_0", outlier.shape = NA, facet.by = "randomization_arm") +
+  geom_jitter(width = 0.2) +
+  ylim(0,260) +
+  ylab("Richness") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(label = "p.format") +
+  ggtitle("Pre-antibiotics")
+
+p.rich.t2.d7_roto_boost.treatment <- ggboxplot(ps1.rich.t2, x = "d7_roto_boost", y = "richness_0", outlier.shape = NA, facet.by = "randomization_arm") +
+  geom_jitter(width = 0.2) +
+  ylim(0,260) +
+  ylab("Richness") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(label = "p.format") +
+  ggtitle("Day 0")
+
+p.rich.t3.d7_roto_boost.treatment <- ggboxplot(ps1.rich.t3, x = "d7_roto_boost", y = "richness_0", outlier.shape = NA, facet.by = "randomization_arm") +
+  geom_jitter(width = 0.2) +
+  ylim(0,260) +
+  ylab("Richness") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(label = "p.format") +
+  ggtitle("Day 7")
+
+grid.arrange(p.rich.t1.d7_roto_boost.treatment, p.rich.t2.d7_roto_boost.treatment, p.rich.t3.d7_roto_boost.treatment, nrow = 3)
+
+```
+
+```{r alpha-diversity-day7-roto-boost-diversity}
+p.sd.t1.d7_roto_boost.treatment <- ggboxplot(ps1.rich.t1, x = "d7_roto_boost", y = "diversities_shannon", outlier.shape = NA, facet.by = "randomization_arm") +
+  geom_jitter(width = 0.2) +
+  ylim(0,260) +
+  ylab("sdness") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(label = "p.format") +
+  ggtitle("Pre-antibiotics")
+
+p.sd.t2.d7_roto_boost.treatment <- ggboxplot(ps1.rich.t2, x = "d7_roto_boost", y = "diversities_shannon", outlier.shape = NA, facet.by = "randomization_arm") +
+  geom_jitter(width = 0.2) +
+  ylim(0,260) +
+  ylab("sdness") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(label = "p.format") +
+  ggtitle("Day 0")
+
+p.sd.t3.d7_roto_boost.treatment <- ggboxplot(ps1.rich.t3, x = "d7_roto_boost", y = "diversities_shannon", outlier.shape = NA, facet.by = "randomization_arm") +
+  geom_jitter(width = 0.2) +
+  ylim(0,260) +
+  ylab("sdness") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(label = "p.format") +
+  ggtitle("Day 7")
+
+grid.arrange(p.sd.t1.d7_roto_boost.treatment, p.sd.t2.d7_roto_boost.treatment, p.sd.t3.d7_roto_boost.treatment, nrow = 3)
 
 ```
 
@@ -1038,7 +1107,7 @@ write.table(sigtab_dds.d0.rota_boost, file="./results/deseq_results_d0_rota_boos
 # Factor on the right will be on the left in the volcano plots. Relevel to switch
 mcols(res.dds.d0.rota_boost, use.names = TRUE)
 
-# Create volcano plots of signficant results
+d# Create volcano plots of signficant results
 # Prepare to join results data.table and taxonomy table
 resdt.d0.rota_boost <- data.table(as(results(diagdds.d0.rota_boost, cooksCutoff = FALSE), "data.frame"),
                    keep.rownames = TRUE)
