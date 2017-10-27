@@ -199,287 +199,74 @@ ggplot(fiss.dds.Shedding.narrow.LRT,
 
 **Interpretation:** There are no differentially abundant taxa in any of the randomization arms at any time point between samples that shed rotavirus and those that did not.
 
-**Pairwise differential abundance testing
+##Pairwise differential abundance testing
 
-**DAY 7**
-
-**BOOST: Day 7 Control**
-```{r differential-abundance-testing-boost-d7-control}
+**BOOST: Day -9 Narrow Spectrum Antibiotics**
+```{r differential-abundance-testing-boost-d.9-narrow}
 sample_data(ps1)$day
-ps1.d7.con <- subset_samples(ps1.con, day == "7")
-sample_data(ps1.d7.con)$day
-sample_data(ps1.d7.con)$randomization_arm
+ps1.d.9.narrow <- subset_samples(ps1.narrow, day == "-9")
+sample_data(ps1.d.9.narrow)$day
+sample_data(ps1.d.9.narrow)$randomization_arm
 
 # Differential Abundance Testing
-ds.d7.con <- phyloseq_to_deseq2(ps1.d7.con, ~d7_rota_boost_updated)
+ds.d.9.narrow <- phyloseq_to_deseq2(ps1.d.9.narrow, ~d7_rota_boost_updated)
 
-geoMeans.ds.d7.con <- apply(counts(ds.d7.con), 1, gm_mean)
-ds.d7.con <- estimateSizeFactors(ds.d7.con, geoMeans = geoMeans.ds.d7.con)
+geoMeans.ds.d.9.narrow <- apply(counts(ds.d.9.narrow), 1, gm_mean)
+ds.d.9.narrow <- estimateSizeFactors(ds.d.9.narrow, geoMeans = geoMeans.ds.d.9.narrow)
 
-dds.d7.con <- DESeq(ds.d7.con, test="Wald", fitType="local", betaPrior = FALSE)
+dds.d.9.narrow <- DESeq(ds.d.9.narrow, test="Wald", fitType="local", betaPrior = FALSE)
 
 alpha = 0.05
 
 # Tabulate and write results
-res.dds.d7.con = results(dds.d7.con, cooksCutoff = FALSE)
-sigtab_dds.dds.d7.con = res.dds.d7.con[which(res.dds.d7.con$padj < alpha), ]
-sigtab_dds.dds.d7.con = cbind(as(sigtab_dds.dds.d7.con, "data.frame"), as(tax_table(ps1.d7.con)[rownames(sigtab_dds.dds.d7.con), ], "matrix"))
-summary(res.dds.d7.con)
-head(sigtab_dds.dds.d7.con)
-write.table(sigtab_dds.dds.d7.con, file="./results/deseq_d7_con_rota_boost.txt", sep = "\t") # Change filename to save results to appropriate file
+res.dds.d.9.narrow = results(dds.d.9.narrow, cooksCutoff = FALSE)
+sigtab_dds.dds.d.9.narrow = res.dds.d.9.narrow[which(res.dds.d.9.narrow$padj < alpha), ]
+sigtab_dds.dds.d.9.narrow = cbind(as(sigtab_dds.dds.d.9.narrow, "data.frame"), as(tax_table(ps1.d.9.narrow)[rownames(sigtab_dds.dds.d.9.narrow), ], "matrix"))
+summary(res.dds.d.9.narrow)
+head(sigtab_dds.dds.d.9.narrow)
+write.table(sigtab_dds.dds.d.9.narrow, file="./results/deseq_d.9_narrow_rota_boost.txt", sep = "\t") # Change filename to save results to appropriate file
 
 # Quick check of factor levels
-mcols(res.dds.d7.con, use.names = TRUE)
+mcols(res.dds.d.9.narrow, use.names = TRUE)
 
 # Prepare to join results data.table and taxonomy table
-resdt.dds.d7.con = data.table(as(results(dds.d7.con, cooksCutoff = FALSE), "data.frame"),
+resdt.dds.d.9.narrow = data.table(as(results(dds.d.9.narrow, cooksCutoff = FALSE), "data.frame"),
                    keep.rownames = TRUE)
-setnames(resdt.dds.d7.con, "rn", "OTU")
-taxdt.dds.d7.com = data.table(data.frame(as(tax_table(ps1.d7.con), "matrix")), keep.rownames = TRUE)
-setnames(taxdt.dds.d7.com, "rn", "OTU")
+setnames(resdt.dds.d.9.narrow, "rn", "OTU")
+taxdt.dds.d.9.com = data.table(data.frame(as(tax_table(ps1.d.9.narrow), "matrix")), keep.rownames = TRUE)
+setnames(taxdt.dds.d.9.com, "rn", "OTU")
 
 # Join results data.table and taxonomy table
-setkeyv(taxdt.dds.d7.com, "OTU")
-setkeyv(resdt.dds.d7.con, "OTU")
-resdt.dds.d7.con <- taxdt.dds.d7.com[resdt.dds.d7.con]
-resdt.dds.d7.con
-resdt.dds.d7.con[, Significant := padj < alpha]
-resdt.dds.d7.con[!is.na(Significant)]
-resdt.dds.d7.con
+setkeyv(taxdt.dds.d.9.com, "OTU")
+setkeyv(resdt.dds.d.9.narrow, "OTU")
+resdt.dds.d.9.narrow <- taxdt.dds.d.9.com[resdt.dds.d.9.narrow]
+resdt.dds.d.9.narrow
+resdt.dds.d.9.narrow[, Significant := padj < alpha]
+resdt.dds.d.9.narrow[!is.na(Significant)]
+resdt.dds.d.9.narrow
 
-volcano.d7.con.boost = ggplot(
-  data = resdt.dds.d7.con[!is.na(Significant)][(pvalue < 1)],
+volcano.d.9.narrow.boost = ggplot(
+  data = resdt.dds.d.9.narrow[!is.na(Significant)][(pvalue < 1)],
   mapping = aes(x = log2FoldChange,
                 y = -log10(pvalue),
                 color = Phylum,
                 label = OTU, label1 = Genus)) +
   theme_bw() +
   geom_point() + 
-  geom_point(data = resdt.dds.d7.con[(Significant)], size = 7, alpha = 0.7) + 
+  geom_point(data = resdt.dds.d.9.narrow[(Significant)], size = 7, alpha = 0.7) + 
   # geom_text(data = resdt[(Significant)], mapping = aes(label = paste("Genus:", Genus)), color = "black", size = 3) +
   theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) +
   geom_hline(yintercept = -log10(alpha)) +
-  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nDay 7 Control ~ Rotavirus Boost") +
+  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nDay -9 Narrow Spectrum Antibiotics ~ Rotavirus Boost") +
   theme(axis.title = element_text(size=12)) +
   theme(axis.text = element_text(size=12)) +
   theme(legend.text = element_text(size=12)) +
   geom_vline(xintercept = 0, lty = 2)
-volcano.d7.con.boost
-summary(res.dds.d7.con)
-mcols(res.dds.d7.con, use.names = TRUE)
+volcano.d.9.narrow.boost
+summary(res.dds.d.9.narrow)
+mcols(res.dds.d.9.narrow, use.names = TRUE)
 
-ggplotly(volcano.d7.con.boost)
-
-```
-
-**BOOST: Day 7 Narrow Spectrum Antibiotics**
-```{r differential-abundance-testing-boost-d7-narrow}
-sample_data(ps1)$day
-ps1.d7.narrow <- subset_samples(ps1.narrow, day == "7")
-sample_data(ps1.d7.narrow)$day
-sample_data(ps1.d7.narrow)$randomization_arm
-
-# Differential Abundance Testing
-ds.d7.narrow <- phyloseq_to_deseq2(ps1.d7.narrow, ~d7_rota_boost_updated)
-
-geoMeans.ds.d7.narrow <- apply(counts(ds.d7.narrow), 1, gm_mean)
-ds.d7.narrow <- estimateSizeFactors(ds.d7.narrow, geoMeans = geoMeans.ds.d7.narrow)
-
-dds.d7.narrow <- DESeq(ds.d7.narrow, test="Wald", fitType="local", betaPrior = FALSE)
-
-alpha = 0.05
-
-# Tabulate and write results
-res.dds.d7.narrow = results(dds.d7.narrow, cooksCutoff = FALSE)
-sigtab_dds.dds.d7.narrow = res.dds.d7.narrow[which(res.dds.d7.narrow$padj < alpha), ]
-sigtab_dds.dds.d7.narrow = cbind(as(sigtab_dds.dds.d7.narrow, "data.frame"), as(tax_table(ps1.d7.narrow)[rownames(sigtab_dds.dds.d7.narrow), ], "matrix"))
-summary(res.dds.d7.narrow)
-head(sigtab_dds.dds.d7.narrow)
-write.table(sigtab_dds.dds.d7.narrow, file="./results/deseq_d7_narrow_rota_boost.txt", sep = "\t") # Change filename to save results to appropriate file
-
-# Quick check of factor levels
-mcols(res.dds.d7.narrow, use.names = TRUE)
-
-# Prepare to join results data.table and taxonomy table
-resdt.dds.d7.narrow = data.table(as(results(dds.d7.narrow, cooksCutoff = FALSE), "data.frame"),
-                   keep.rownames = TRUE)
-setnames(resdt.dds.d7.narrow, "rn", "OTU")
-taxdt.dds.d7.com = data.table(data.frame(as(tax_table(ps1.d7.narrow), "matrix")), keep.rownames = TRUE)
-setnames(taxdt.dds.d7.com, "rn", "OTU")
-
-# Join results data.table and taxonomy table
-setkeyv(taxdt.dds.d7.com, "OTU")
-setkeyv(resdt.dds.d7.narrow, "OTU")
-resdt.dds.d7.narrow <- taxdt.dds.d7.com[resdt.dds.d7.narrow]
-resdt.dds.d7.narrow
-resdt.dds.d7.narrow[, Significant := padj < alpha]
-resdt.dds.d7.narrow[!is.na(Significant)]
-resdt.dds.d7.narrow
-
-volcano.d7.narrow.boost = ggplot(
-  data = resdt.dds.d7.narrow[!is.na(Significant)][(pvalue < 1)],
-  mapping = aes(x = log2FoldChange,
-                y = -log10(pvalue),
-                color = Phylum,
-                label = OTU, label1 = Genus)) +
-  theme_bw() +
-  geom_point() + 
-  geom_point(data = resdt.dds.d7.narrow[(Significant)], size = 7, alpha = 0.7) + 
-  # geom_text(data = resdt[(Significant)], mapping = aes(label = paste("Genus:", Genus)), color = "black", size = 3) +
-  theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) +
-  geom_hline(yintercept = -log10(alpha)) +
-  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nDay 7 Narrow Spectrum Antibiotics ~ Rotavirus Boost") +
-  theme(axis.title = element_text(size=12)) +
-  theme(axis.text = element_text(size=12)) +
-  theme(legend.text = element_text(size=12)) +
-  geom_vline(xintercept = 0, lty = 2)
-volcano.d7.narrow.boost
-summary(res.dds.d7.narrow)
-mcols(res.dds.d7.narrow, use.names = TRUE)
-
-ggplotly(volcano.d7.narrow.boost)
-
-```
-
-**BOOST: Day 7 Broad Spectrum Antibiotics**
-```{r differential-abundance-testing-boost-d7-broad}
-sample_data(ps1)$day
-ps1.d7.broad <- subset_samples(ps1.broad, day == "7")
-sample_data(ps1.d7.broad)$day
-
-# Differential Abundance Testing
-ds.d7.broad <- phyloseq_to_deseq2(ps1.d7.broad, ~d7_rota_boost_updated)
-
-geoMeans.ds.d7.broad <- apply(counts(ds.d7.broad), 1, gm_mean)
-ds.d7.broad <- estimateSizeFactors(ds.d7.broad, geoMeans = geoMeans.ds.d7.broad)
-
-dds.d7.broad <- DESeq(ds.d7.broad, test="Wald", fitType="local", betaPrior = FALSE)
-
-alpha = 0.05
-
-# Tabulate and write results
-res.dds.d7.broad = results(dds.d7.broad, cooksCutoff = FALSE)
-sigtab_dds.dds.d7.broad = res.dds.d7.broad[which(res.dds.d7.broad$padj < alpha), ]
-sigtab_dds.dds.d7.broad = cbind(as(sigtab_dds.dds.d7.broad, "data.frame"), as(tax_table(ps1.d7.broad)[rownames(sigtab_dds.dds.d7.broad), ], "matrix"))
-summary(res.dds.d7.broad)
-head(sigtab_dds.dds.d7.broad)
-write.table(sigtab_dds.dds.d7.broad, file="./results/deseq_d7_broad_rota_boost.txt", sep = "\t") # Change filename to save results to appropriate file
-
-# Quick check of factor levels
-mcols(res.dds.d7.broad, use.names = TRUE)
-
-# Prepare to join results data.table and taxonomy table
-resdt.dds.d7.broad = data.table(as(results(dds.d7.broad, cooksCutoff = FALSE), "data.frame"),
-                   keep.rownames = TRUE)
-setnames(resdt.dds.d7.broad, "rn", "OTU")
-taxdt.dds.d7.com = data.table(data.frame(as(tax_table(ps1.d7.broad), "matrix")), keep.rownames = TRUE)
-setnames(taxdt.dds.d7.com, "rn", "OTU")
-
-# Join results data.table and taxonomy table
-setkeyv(taxdt.dds.d7.com, "OTU")
-setkeyv(resdt.dds.d7.broad, "OTU")
-resdt.dds.d7.broad <- taxdt.dds.d7.com[resdt.dds.d7.broad]
-resdt.dds.d7.broad
-resdt.dds.d7.broad[, Significant := padj < alpha]
-resdt.dds.d7.broad[!is.na(Significant)]
-resdt.dds.d7.broad
-
-volcano.d7.broad.boost = ggplot(
-  data = resdt.dds.d7.broad[!is.na(Significant)][(pvalue < 1)],
-  mapping = aes(x = log2FoldChange,
-                y = -log10(pvalue),
-                color = Phylum,
-                label = OTU, label1 = Genus)) +
-  theme_bw() +
-  geom_point() + 
-  geom_point(data = resdt.dds.d7.broad[(Significant)], size = 7, alpha = 0.7) + 
-  # geom_text(data = resdt[(Significant)], mapping = aes(label = paste("Genus:", Genus)), color = "black", size = 3) +
-  theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) +
-  geom_hline(yintercept = -log10(alpha)) +
-  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nDay 7 Broad Spectrum Antibiotics ~ Rotavirus Boost") +
-  theme(axis.title = element_text(size=12)) +
-  theme(axis.text = element_text(size=12)) +
-  theme(legend.text = element_text(size=12)) +
-  geom_vline(xintercept = 0, lty = 2)
-volcano.d7.broad.boost
-summary(res.dds.d7.broad)
-mcols(res.dds.d7.broad, use.names = TRUE)
-
-ggplotly(volcano.d7.broad.boost)
-
-```
-
-```{r day7-boost-grid}
-grid.arrange(volcano.d7.con.boost, volcano.d7.narrow.boost, volcano.d7.broad.boost, ncol = 3)
-
-```
-
-**BOOST: Day 0 Control**
-```{r differential-abundance-testing-boost-d0-control}
-sample_data(ps1)$day
-ps1.d0.con <- subset_samples(ps1.con, day == "0")
-sample_data(ps1.d0.con)$day
-sample_data(ps1.d0.con)$randomization_arm
-
-# Differential Abundance Testing
-ds.d0.con <- phyloseq_to_deseq2(ps1.d0.con, ~d7_rota_boost_updated)
-
-geoMeans.ds.d0.con <- apply(counts(ds.d0.con), 1, gm_mean)
-ds.d0.con <- estimateSizeFactors(ds.d0.con, geoMeans = geoMeans.ds.d0.con)
-
-dds.d0.con <- DESeq(ds.d0.con, test="Wald", fitType="local", betaPrior = FALSE)
-
-alpha = 0.05
-
-# Tabulate and write results
-res.dds.d0.con = results(dds.d0.con, cooksCutoff = FALSE)
-sigtab_dds.dds.d0.con = res.dds.d0.con[which(res.dds.d0.con$padj < alpha), ]
-sigtab_dds.dds.d0.con = cbind(as(sigtab_dds.dds.d0.con, "data.frame"), as(tax_table(ps1.d0.con)[rownames(sigtab_dds.dds.d0.con), ], "matrix"))
-summary(res.dds.d0.con)
-head(sigtab_dds.dds.d0.con)
-write.table(sigtab_dds.dds.d0.con, file="./results/deseq_d7_con_rota_boost.txt", sep = "\t") # Change filename to save results to appropriate file
-
-# Quick check of factor levels
-mcols(res.dds.d0.con, use.names = TRUE)
-
-# Prepare to join results data.table and taxonomy table
-resdt.dds.d0.con = data.table(as(results(dds.d0.con, cooksCutoff = FALSE), "data.frame"),
-                   keep.rownames = TRUE)
-setnames(resdt.dds.d0.con, "rn", "OTU")
-taxdt.dds.d0.com = data.table(data.frame(as(tax_table(ps1.d0.con), "matrix")), keep.rownames = TRUE)
-setnames(taxdt.dds.d0.com, "rn", "OTU")
-
-# Join results data.table and taxonomy table
-setkeyv(taxdt.dds.d0.com, "OTU")
-setkeyv(resdt.dds.d0.con, "OTU")
-resdt.dds.d0.con <- taxdt.dds.d0.com[resdt.dds.d0.con]
-resdt.dds.d0.con
-resdt.dds.d0.con[, Significant := padj < alpha]
-resdt.dds.d0.con[!is.na(Significant)]
-resdt.dds.d0.con
-
-volcano.d0.con.boost = ggplot(
-  data = resdt.dds.d0.con[!is.na(Significant)][(pvalue < 1)],
-  mapping = aes(x = log2FoldChange,
-                y = -log10(pvalue),
-                color = Phylum,
-                label = OTU, label1 = Genus)) +
-  theme_bw() +
-  geom_point() + 
-  geom_point(data = resdt.dds.d0.con[(Significant)], size = 7, alpha = 0.7) + 
-  # geom_text(data = resdt[(Significant)], mapping = aes(label = paste("Genus:", Genus)), color = "black", size = 3) +
-  theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) +
-  geom_hline(yintercept = -log10(alpha)) +
-  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nDay 0 Control ~ Rotavirus Boost") +
-  theme(axis.title = element_text(size=12)) +
-  theme(axis.text = element_text(size=12)) +
-  theme(legend.text = element_text(size=12)) +
-  geom_vline(xintercept = 0, lty = 2)
-volcano.d0.con.boost
-summary(res.dds.d0.con)
-mcols(res.dds.d0.con, use.names = TRUE)
-
-ggplotly(volcano.d0.con.boost)
+ggplotly(volcano.d.9.narrow.boost)
 
 ```
 
@@ -552,222 +339,154 @@ ggplotly(volcano.d0.narrow.boost)
 
 ```
 
-**BOOST: Day 0 Broad Spectrum Antibiotics**
-```{r differential-abundance-testing-boost-d0-broad}
+**BOOST: Day 7 Narrow Spectrum Antibiotics**
+```{r differential-abundance-testing-boost-d7-narrow}
 sample_data(ps1)$day
-ps1.d0.broad <- subset_samples(ps1.broad, day == "0")
-sample_data(ps1.d0.broad)$day
-sample_data(ps1.d0.broad)$randomization_arm
+ps1.d7.narrow <- subset_samples(ps1.narrow, day == "7")
+sample_data(ps1.d7.narrow)$day
+sample_data(ps1.d7.narrow)$randomization_arm
 
 # Differential Abundance Testing
-ds.d0.broad <- phyloseq_to_deseq2(ps1.d0.broad, ~d7_rota_boost_updated)
+ds.d7.narrow <- phyloseq_to_deseq2(ps1.d7.narrow, ~d7_rota_boost_updated)
 
-geoMeans.ds.d0.broad <- apply(counts(ds.d0.broad), 1, gm_mean)
-ds.d0.broad <- estimateSizeFactors(ds.d0.broad, geoMeans = geoMeans.ds.d0.broad)
+geoMeans.ds.d7.narrow <- apply(counts(ds.d7.narrow), 1, gm_mean)
+ds.d7.narrow <- estimateSizeFactors(ds.d7.narrow, geoMeans = geoMeans.ds.d7.narrow)
 
-dds.d0.broad <- DESeq(ds.d0.broad, test="Wald", fitType="local", betaPrior = FALSE)
+dds.d7.narrow <- DESeq(ds.d7.narrow, test="Wald", fitType="local", betaPrior = FALSE)
 
 alpha = 0.05
 
 # Tabulate and write results
-res.dds.d0.broad = results(dds.d0.broad, cooksCutoff = FALSE)
-sigtab_dds.dds.d0.broad = res.dds.d0.broad[which(res.dds.d0.broad$padj < alpha), ]
-sigtab_dds.dds.d0.broad = cbind(as(sigtab_dds.dds.d0.broad, "data.frame"), as(tax_table(ps1.d0.broad)[rownames(sigtab_dds.dds.d0.broad), ], "matrix"))
-summary(res.dds.d0.broad)
+res.dds.d7.narrow = results(dds.d7.narrow, cooksCutoff = FALSE)
+sigtab_dds.dds.d7.narrow = res.dds.d7.narrow[which(res.dds.d7.narrow$padj < alpha), ]
+sigtab_dds.dds.d7.narrow = cbind(as(sigtab_dds.dds.d7.narrow, "data.frame"), as(tax_table(ps1.d7.narrow)[rownames(sigtab_dds.dds.d7.narrow), ], "matrix"))
+summary(res.dds.d7.narrow)
+head(sigtab_dds.dds.d7.narrow)
+write.table(sigtab_dds.dds.d7.narrow, file="./results/deseq_d7_narrow_rota_boost.txt", sep = "\t") # Change filename to save results to appropriate file
 
-# No significantly different taxa at Day 0 in Broad Spectrum Antibiotics
 # Quick check of factor levels
-mcols(res.dds.d0.broad, use.names = TRUE)
+mcols(res.dds.d7.narrow, use.names = TRUE)
 
 # Prepare to join results data.table and taxonomy table
-resdt.dds.d0.broad = data.table(as(results(dds.d0.broad, cooksCutoff = FALSE), "data.frame"),
+resdt.dds.d7.narrow = data.table(as(results(dds.d7.narrow, cooksCutoff = FALSE), "data.frame"),
                    keep.rownames = TRUE)
-setnames(resdt.dds.d0.broad, "rn", "OTU")
-taxdt.dds.d0.com = data.table(data.frame(as(tax_table(ps1.d0.broad), "matrix")), keep.rownames = TRUE)
-setnames(taxdt.dds.d0.com, "rn", "OTU")
+setnames(resdt.dds.d7.narrow, "rn", "OTU")
+taxdt.dds.d7.com = data.table(data.frame(as(tax_table(ps1.d7.narrow), "matrix")), keep.rownames = TRUE)
+setnames(taxdt.dds.d7.com, "rn", "OTU")
 
 # Join results data.table and taxonomy table
-setkeyv(taxdt.dds.d0.com, "OTU")
-setkeyv(resdt.dds.d0.broad, "OTU")
-resdt.dds.d0.broad <- taxdt.dds.d0.com[resdt.dds.d0.broad]
-resdt.dds.d0.broad
-resdt.dds.d0.broad[, Significant := padj < alpha]
-resdt.dds.d0.broad[!is.na(Significant)]
-resdt.dds.d0.broad
+setkeyv(taxdt.dds.d7.com, "OTU")
+setkeyv(resdt.dds.d7.narrow, "OTU")
+resdt.dds.d7.narrow <- taxdt.dds.d7.com[resdt.dds.d7.narrow]
+resdt.dds.d7.narrow
+resdt.dds.d7.narrow[, Significant := padj < alpha]
+resdt.dds.d7.narrow[!is.na(Significant)]
+resdt.dds.d7.narrow
 
-volcano.d0.broad.boost = ggplot(
-  data = resdt.dds.d0.broad[!is.na(Significant)][(pvalue < 1)],
+volcano.d7.narrow.boost = ggplot(
+  data = resdt.dds.d7.narrow[!is.na(Significant)][(pvalue < 1)],
   mapping = aes(x = log2FoldChange,
                 y = -log10(pvalue),
                 color = Phylum,
                 label = OTU, label1 = Genus)) +
   theme_bw() +
   geom_point() + 
-  geom_point(data = resdt.dds.d0.broad[(Significant)], size = 7, alpha = 0.7) + 
+  geom_point(data = resdt.dds.d7.narrow[(Significant)], size = 7, alpha = 0.7) + 
   # geom_text(data = resdt[(Significant)], mapping = aes(label = paste("Genus:", Genus)), color = "black", size = 3) +
   theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) +
   geom_hline(yintercept = -log10(alpha)) +
-  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nDay 0 Broad Spectrum Antibiotics ~ Rotavirus Boost") +
+  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nDay 7 Narrow Spectrum Antibiotics ~ Rotavirus Boost") +
   theme(axis.title = element_text(size=12)) +
   theme(axis.text = element_text(size=12)) +
   theme(legend.text = element_text(size=12)) +
   geom_vline(xintercept = 0, lty = 2)
-volcano.d0.broad.boost
-summary(res.dds.d0.broad)
-mcols(res.dds.d0.broad, use.names = TRUE)
+volcano.d7.narrow.boost
+summary(res.dds.d7.narrow)
+mcols(res.dds.d7.narrow, use.names = TRUE)
 
-ggplotly(volcano.d0.broad.boost)
+ggplotly(volcano.d7.narrow.boost)
 
 ```
 
-**DAY -9**
+```{r narrow-spectrum-boost-grid}
+grid.arrange(volcano.d.9.narrow.boost, volcano.d0.narrow.boost, volcano.d7.narrow.boost, ncol = 3)
 
-**BOOST: Day -9 Control**
-```{r differential-abundance-testing-boost-d.9-control}
-sample_data(ps1)$day
-ps1.d.9.con <- subset_samples(ps1.con, day == "-9")
-sample_data(ps1.d.9.con)$day
-sample_data(ps1.d.9.con)$randomization_arm
+```
+**Shedding**
 
+**Shedding: Day -9 Narrow Spectrum Antibiotics**
+```{r differential-abundance-testing-Shedding-d.9-narrow}
 # Differential Abundance Testing
-ds.d.9.con <- phyloseq_to_deseq2(ps1.d.9.con, ~d7_rota_boost_updated)
+ds.d.9.narrow.shed <- phyloseq_to_deseq2(ps1.d.9.narrow, ~Shedding)
 
-geoMeans.ds.d.9.con <- apply(counts(ds.d.9.con), 1, gm_mean)
-ds.d.9.con <- estimateSizeFactors(ds.d.9.con, geoMeans = geoMeans.ds.d.9.con)
+geoMeans.ds.d.9.narrow.shed <- apply(counts(ds.d.9.narrow.shed), 1, gm_mean)
+ds.d.9.narrow.shed <- estimateSizeFactors(ds.d.9.narrow.shed, geoMeans = geoMeans.ds.d.9.narrow.shed)
 
-dds.d.9.con <- DESeq(ds.d.9.con, test="Wald", fitType="local", betaPrior = FALSE)
+dds.d.9.narrow.shed <- DESeq(ds.d.9.narrow.shed, test="Wald", fitType="local", betaPrior = FALSE)
 
 alpha = 0.05
 
 # Tabulate and write results
-res.dds.d.9.con = results(dds.d.9.con, cooksCutoff = FALSE)
-sigtab_dds.dds.d.9.con = res.dds.d.9.con[which(res.dds.d.9.con$padj < alpha), ]
-sigtab_dds.dds.d.9.con = cbind(as(sigtab_dds.dds.d.9.con, "data.frame"), as(tax_table(ps1.d.9.con)[rownames(sigtab_dds.dds.d.9.con), ], "matrix"))
-summary(res.dds.d.9.con)
-head(sigtab_dds.dds.d.9.con)
-write.table(sigtab_dds.dds.d.9.con, file="./results/deseq_d.9_con_rota_boost.txt", sep = "\t") # Change filename to save results to appropriate file
+res.dds.d.9.narrow.shed = results(dds.d.9.narrow.shed, cooksCutoff = FALSE)
+sigtab_dds.dds.d.9.narrow.shed = res.dds.d.9.narrow.shed[which(res.dds.d.9.narrow.shed$padj < alpha), ]
+sigtab_dds.dds.d.9.narrow.shed = cbind(as(sigtab_dds.dds.d.9.narrow.shed, "data.frame"), as(tax_table(ps1.d.9.narrow)[rownames(sigtab_dds.dds.d.9.narrow.shed), ], "matrix"))
+summary(res.dds.d.9.narrow.shed)
+head(sigtab_dds.dds.d.9.narrow.shed)
+write.table(sigtab_dds.dds.d.9.narrow.shed, file="./results/deseq_d.9_narrow_Shedding.txt", sep = "\t") # Change filename to save results to appropriate file
 
 # Quick check of factor levels
-mcols(res.dds.d.9.con, use.names = TRUE)
+mcols(res.dds.d.9.narrow.shed, use.names = TRUE)
 
 # Prepare to join results data.table and taxonomy table
-resdt.dds.d.9.con = data.table(as(results(dds.d.9.con, cooksCutoff = FALSE), "data.frame"),
+resdt.dds.d.9.narrow.shed = data.table(as(results(dds.d.9.narrow.shed, cooksCutoff = FALSE), "data.frame"),
                    keep.rownames = TRUE)
-setnames(resdt.dds.d.9.con, "rn", "OTU")
-taxdt.dds.d.9.com = data.table(data.frame(as(tax_table(ps1.d.9.con), "matrix")), keep.rownames = TRUE)
-setnames(taxdt.dds.d.9.com, "rn", "OTU")
-
-# Join results data.table and taxonomy table
-setkeyv(taxdt.dds.d.9.com, "OTU")
-setkeyv(resdt.dds.d.9.con, "OTU")
-resdt.dds.d.9.con <- taxdt.dds.d.9.com[resdt.dds.d.9.con]
-resdt.dds.d.9.con
-resdt.dds.d.9.con[, Significant := padj < alpha]
-resdt.dds.d.9.con[!is.na(Significant)]
-resdt.dds.d.9.con
-
-volcano.d.9.con.boost = ggplot(
-  data = resdt.dds.d.9.con[!is.na(Significant)][(pvalue < 1)],
-  mapping = aes(x = log2FoldChange,
-                y = -log10(pvalue),
-                color = Phylum,
-                label = OTU, label1 = Genus)) +
-  theme_bw() +
-  geom_point() + 
-  geom_point(data = resdt.dds.d.9.con[(Significant)], size = 7, alpha = 0.7) + 
-  # geom_text(data = resdt[(Significant)], mapping = aes(label = paste("Genus:", Genus)), color = "black", size = 3) +
-  theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) +
-  geom_hline(yintercept = -log10(alpha)) +
-  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nDay -9 Control ~ Rotavirus Boost") +
-  theme(axis.title = element_text(size=12)) +
-  theme(axis.text = element_text(size=12)) +
-  theme(legend.text = element_text(size=12)) +
-  geom_vline(xintercept = 0, lty = 2)
-volcano.d.9.con.boost
-summary(res.dds.d.9.con)
-mcols(res.dds.d.9.con, use.names = TRUE)
-
-ggplotly(volcano.d.9.con.boost)
-
-```
-
-**BOOST: Day -9 Narrow Spectrum Antibiotics**
-```{r differential-abundance-testing-boost-d.9-narrow}
-sample_data(ps1)$day
-ps1.d.9.narrow <- subset_samples(ps1.narrow, day == "-9")
-sample_data(ps1.d.9.narrow)$day
-sample_data(ps1.d.9.narrow)$randomization_arm
-
-# Differential Abundance Testing
-ds.d.9.narrow <- phyloseq_to_deseq2(ps1.d.9.narrow, ~d7_rota_boost_updated)
-
-geoMeans.ds.d.9.narrow <- apply(counts(ds.d.9.narrow), 1, gm_mean)
-ds.d.9.narrow <- estimateSizeFactors(ds.d.9.narrow, geoMeans = geoMeans.ds.d.9.narrow)
-
-dds.d.9.narrow <- DESeq(ds.d.9.narrow, test="Wald", fitType="local", betaPrior = FALSE)
-
-alpha = 0.05
-
-# Tabulate and write results
-res.dds.d.9.narrow = results(dds.d.9.narrow, cooksCutoff = FALSE)
-sigtab_dds.dds.d.9.narrow = res.dds.d.9.narrow[which(res.dds.d.9.narrow$padj < alpha), ]
-sigtab_dds.dds.d.9.narrow = cbind(as(sigtab_dds.dds.d.9.narrow, "data.frame"), as(tax_table(ps1.d.9.narrow)[rownames(sigtab_dds.dds.d.9.narrow), ], "matrix"))
-summary(res.dds.d.9.narrow)
-head(sigtab_dds.dds.d.9.narrow)
-write.table(sigtab_dds.dds.d.9.narrow, file="./results/deseq_d.9_narrow_rota_boost.txt", sep = "\t") # Change filename to save results to appropriate file
-
-# Quick check of factor levels
-mcols(res.dds.d.9.narrow, use.names = TRUE)
-
-# Prepare to join results data.table and taxonomy table
-resdt.dds.d.9.narrow = data.table(as(results(dds.d.9.narrow, cooksCutoff = FALSE), "data.frame"),
-                   keep.rownames = TRUE)
-setnames(resdt.dds.d.9.narrow, "rn", "OTU")
+setnames(resdt.dds.d.9.narrow.shed, "rn", "OTU")
 taxdt.dds.d.9.com = data.table(data.frame(as(tax_table(ps1.d.9.narrow), "matrix")), keep.rownames = TRUE)
 setnames(taxdt.dds.d.9.com, "rn", "OTU")
 
 # Join results data.table and taxonomy table
 setkeyv(taxdt.dds.d.9.com, "OTU")
-setkeyv(resdt.dds.d.9.narrow, "OTU")
-resdt.dds.d.9.narrow <- taxdt.dds.d.9.com[resdt.dds.d.9.narrow]
-resdt.dds.d.9.narrow
-resdt.dds.d.9.narrow[, Significant := padj < alpha]
-resdt.dds.d.9.narrow[!is.na(Significant)]
-resdt.dds.d.9.narrow
+setkeyv(resdt.dds.d.9.narrow.shed, "OTU")
+resdt.dds.d.9.narrow.shed <- taxdt.dds.d.9.com[resdt.dds.d.9.narrow.shed]
+resdt.dds.d.9.narrow.shed
+resdt.dds.d.9.narrow.shed[, Significant := padj < alpha]
+resdt.dds.d.9.narrow.shed[!is.na(Significant)]
+resdt.dds.d.9.narrow.shed
 
-volcano.d.9.narrow.boost = ggplot(
-  data = resdt.dds.d.9.narrow[!is.na(Significant)][(pvalue < 1)],
+volcano.d.9.narrow.shed = ggplot(
+  data = resdt.dds.d.9.narrow.shed[!is.na(Significant)][(pvalue < 1)],
   mapping = aes(x = log2FoldChange,
                 y = -log10(pvalue),
                 color = Phylum,
                 label = OTU, label1 = Genus)) +
   theme_bw() +
   geom_point() + 
-  geom_point(data = resdt.dds.d.9.narrow[(Significant)], size = 7, alpha = 0.7) + 
+  geom_point(data = resdt.dds.d.9.narrow.shed[(Significant)], size = 7, alpha = 0.7) + 
   # geom_text(data = resdt[(Significant)], mapping = aes(label = paste("Genus:", Genus)), color = "black", size = 3) +
   theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) +
   geom_hline(yintercept = -log10(alpha)) +
-  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nDay -9 Narrow Spectrum Antibiotics ~ Rotavirus Boost") +
+  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nDay -9 Narrow Spectrum Antibiotics ~ Shedding") +
   theme(axis.title = element_text(size=12)) +
   theme(axis.text = element_text(size=12)) +
   theme(legend.text = element_text(size=12)) +
   geom_vline(xintercept = 0, lty = 2)
-volcano.d.9.narrow.boost
-summary(res.dds.d.9.narrow)
-mcols(res.dds.d.9.narrow, use.names = TRUE)
+volcano.d.9.narrow.shed
+summary(res.dds.d.9.narrow.shed)
+mcols(res.dds.d.9.narrow.shed, use.names = TRUE)
 
-ggplotly(volcano.d.9.narrow.boost)
+ggplotly(volcano.d.9.narrow.shed)
 
 ```
 
-**BOOST: Day -9 Broad Spectrum Antibiotics**
-```{r differential-abundance-testing-boost-d.9-broad}
+**Shedding: Day -9 Broad Spectrum Antibiotics**
+```{r differential-abundance-testing-Shedding-d.9-broad}
 sample_data(ps1)$day
 ps1.d.9.broad <- subset_samples(ps1.broad, day == "-9")
 sample_data(ps1.d.9.broad)$day
+sample_data(ps1.d.9.broad)$randomization_arm
 
 # Differential Abundance Testing
-ds.d.9.broad <- phyloseq_to_deseq2(ps1.d.9.broad, ~d7_rota_boost_updated)
+ds.d.9.broad <- phyloseq_to_deseq2(ps1.d.9.broad, ~Shedding)
 
 geoMeans.ds.d.9.broad <- apply(counts(ds.d.9.broad), 1, gm_mean)
 ds.d.9.broad <- estimateSizeFactors(ds.d.9.broad, geoMeans = geoMeans.ds.d.9.broad)
@@ -782,7 +501,7 @@ sigtab_dds.dds.d.9.broad = res.dds.d.9.broad[which(res.dds.d.9.broad$padj < alph
 sigtab_dds.dds.d.9.broad = cbind(as(sigtab_dds.dds.d.9.broad, "data.frame"), as(tax_table(ps1.d.9.broad)[rownames(sigtab_dds.dds.d.9.broad), ], "matrix"))
 summary(res.dds.d.9.broad)
 head(sigtab_dds.dds.d.9.broad)
-write.table(sigtab_dds.dds.d.9.broad, file="./results/deseq_d.9_broad_rota_boost.txt", sep = "\t") # Change filename to save results to appropriate file
+write.table(sigtab_dds.dds.d.9.broad, file="./results/deseq_d.9_broad_Shedding.txt", sep = "\t") # Change filename to save results to appropriate file
 
 # Quick check of factor levels
 mcols(res.dds.d.9.broad, use.names = TRUE)
@@ -803,7 +522,7 @@ resdt.dds.d.9.broad[, Significant := padj < alpha]
 resdt.dds.d.9.broad[!is.na(Significant)]
 resdt.dds.d.9.broad
 
-volcano.d.9.broad.boost = ggplot(
+volcano.d.9.broad.shed = ggplot(
   data = resdt.dds.d.9.broad[!is.na(Significant)][(pvalue < 1)],
   mapping = aes(x = log2FoldChange,
                 y = -log10(pvalue),
@@ -815,156 +534,16 @@ volcano.d.9.broad.boost = ggplot(
   # geom_text(data = resdt[(Significant)], mapping = aes(label = paste("Genus:", Genus)), color = "black", size = 3) +
   theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) +
   geom_hline(yintercept = -log10(alpha)) +
-  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nDay -9 Broad Spectrum Antibiotics ~ Rotavirus Boost") +
+  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nDay -9 Broad Spectrum Antibiotics ~ Shedding") +
   theme(axis.title = element_text(size=12)) +
   theme(axis.text = element_text(size=12)) +
   theme(legend.text = element_text(size=12)) +
   geom_vline(xintercept = 0, lty = 2)
-volcano.d.9.broad.boost
+volcano.d.9.broad.shed
 summary(res.dds.d.9.broad)
 mcols(res.dds.d.9.broad, use.names = TRUE)
 
-ggplotly(volcano.d.9.broad.boost)
-
-```
-
-```{r day7-boost-grid}
-grid.arrange(volcano.d.9.con.boost, volcano.d0.con.boost, volcano.d7.con.boost, volcano.d.9.narrow.boost, volcano.d0.narrow.boost, volcano.d7.narrow.boost, volcano.d.9.broad.boost,  volcano.d0.broad.boost, volcano.d7.broad.boost, nrow = 3, ncol = 3)
-
-```
-
-**Shedding**
-
-**Shedding: Day 7 Narrow Spectrum Antibiotics**
-```{r differential-abundance-testing-Shedding-d7-narrow}
-# Differential Abundance Testing
-ds.d7.narrow.shed <- phyloseq_to_deseq2(ps1.d7.narrow, ~Shedding)
-
-geoMeans.ds.d7.narrow.shed <- apply(counts(ds.d7.narrow.shed), 1, gm_mean)
-ds.d7.narrow.shed <- estimateSizeFactors(ds.d7.narrow.shed, geoMeans = geoMeans.ds.d7.narrow.shed)
-
-dds.d7.narrow.shed <- DESeq(ds.d7.narrow.shed, test="Wald", fitType="local", betaPrior = FALSE)
-
-alpha = 0.05
-
-# Tabulate and write results
-res.dds.d7.narrow.shed = results(dds.d7.narrow.shed, cooksCutoff = FALSE)
-sigtab_dds.dds.d7.narrow.shed = res.dds.d7.narrow.shed[which(res.dds.d7.narrow.shed$padj < alpha), ]
-sigtab_dds.dds.d7.narrow.shed = cbind(as(sigtab_dds.dds.d7.narrow.shed, "data.frame"), as(tax_table(ps1.d7.narrow)[rownames(sigtab_dds.dds.d7.narrow.shed), ], "matrix"))
-summary(res.dds.d7.narrow.shed)
-head(sigtab_dds.dds.d7.narrow.shed)
-write.table(sigtab_dds.dds.d7.narrow.shed, file="./results/deseq_d7_narrow_Shedding.txt", sep = "\t") # Change filename to save results to appropriate file
-
-# Quick check of factor levels
-mcols(res.dds.d7.narrow.shed, use.names = TRUE)
-
-# Prepare to join results data.table and taxonomy table
-resdt.dds.d7.narrow.shed = data.table(as(results(dds.d7.narrow.shed, cooksCutoff = FALSE), "data.frame"),
-                   keep.rownames = TRUE)
-setnames(resdt.dds.d7.narrow.shed, "rn", "OTU")
-taxdt.dds.d7.com = data.table(data.frame(as(tax_table(ps1.d7.narrow), "matrix")), keep.rownames = TRUE)
-setnames(taxdt.dds.d7.com, "rn", "OTU")
-
-# Join results data.table and taxonomy table
-setkeyv(taxdt.dds.d7.com, "OTU")
-setkeyv(resdt.dds.d7.narrow.shed, "OTU")
-resdt.dds.d7.narrow.shed <- taxdt.dds.d7.com[resdt.dds.d7.narrow.shed]
-resdt.dds.d7.narrow.shed
-resdt.dds.d7.narrow.shed[, Significant := padj < alpha]
-resdt.dds.d7.narrow.shed[!is.na(Significant)]
-resdt.dds.d7.narrow.shed
-
-volcano.d7.narrow.shed = ggplot(
-  data = resdt.dds.d7.narrow.shed[!is.na(Significant)][(pvalue < 1)],
-  mapping = aes(x = log2FoldChange,
-                y = -log10(pvalue),
-                color = Phylum,
-                label = OTU, label1 = Genus)) +
-  theme_bw() +
-  geom_point() + 
-  geom_point(data = resdt.dds.d7.narrow.shed[(Significant)], size = 7, alpha = 0.7) + 
-  # geom_text(data = resdt[(Significant)], mapping = aes(label = paste("Genus:", Genus)), color = "black", size = 3) +
-  theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) +
-  geom_hline(yintercept = -log10(alpha)) +
-  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nDay 7 Narrow Spectrum Antibiotics ~ Shedding") +
-  theme(axis.title = element_text(size=12)) +
-  theme(axis.text = element_text(size=12)) +
-  theme(legend.text = element_text(size=12)) +
-  geom_vline(xintercept = 0, lty = 2)
-volcano.d7.narrow.shed
-summary(res.dds.d7.narrow.shed)
-mcols(res.dds.d7.narrow.shed, use.names = TRUE)
-
-ggplotly(volcano.d7.narrow.shed)
-
-```
-
-**Shedding: Day 7 Broad Spectrum Antibiotics**
-```{r differential-abundance-testing-Shedding-d7-broad}
-# Differential Abundance Testing
-ds.d7.broad <- phyloseq_to_deseq2(ps1.d7.broad, ~Shedding)
-
-geoMeans.ds.d7.broad <- apply(counts(ds.d7.broad), 1, gm_mean)
-ds.d7.broad <- estimateSizeFactors(ds.d7.broad, geoMeans = geoMeans.ds.d7.broad)
-
-dds.d7.broad <- DESeq(ds.d7.broad, test="Wald", fitType="local", betaPrior = FALSE)
-
-alpha = 0.05
-
-# Tabulate and write results
-res.dds.d7.broad = results(dds.d7.broad, cooksCutoff = FALSE)
-sigtab_dds.dds.d7.broad = res.dds.d7.broad[which(res.dds.d7.broad$padj < alpha), ]
-sigtab_dds.dds.d7.broad = cbind(as(sigtab_dds.dds.d7.broad, "data.frame"), as(tax_table(ps1.d7.broad)[rownames(sigtab_dds.dds.d7.broad), ], "matrix"))
-summary(res.dds.d7.broad)
-head(sigtab_dds.dds.d7.broad)
-write.table(sigtab_dds.dds.d7.broad, file="./results/deseq_d7_broad_Shedding.txt", sep = "\t") # Change filename to save results to appropriate file
-
-# Quick check of factor levels
-mcols(res.dds.d7.broad, use.names = TRUE)
-
-# Prepare to join results data.table and taxonomy table
-resdt.dds.d7.broad = data.table(as(results(dds.d7.broad, cooksCutoff = FALSE), "data.frame"),
-                   keep.rownames = TRUE)
-setnames(resdt.dds.d7.broad, "rn", "OTU")
-taxdt.dds.d7.com = data.table(data.frame(as(tax_table(ps1.d7.broad), "matrix")), keep.rownames = TRUE)
-setnames(taxdt.dds.d7.com, "rn", "OTU")
-
-# Join results data.table and taxonomy table
-setkeyv(taxdt.dds.d7.com, "OTU")
-setkeyv(resdt.dds.d7.broad, "OTU")
-resdt.dds.d7.broad <- taxdt.dds.d7.com[resdt.dds.d7.broad]
-resdt.dds.d7.broad
-resdt.dds.d7.broad[, Significant := padj < alpha]
-resdt.dds.d7.broad[!is.na(Significant)]
-resdt.dds.d7.broad
-
-volcano.d7.broad.shed = ggplot(
-  data = resdt.dds.d7.broad[!is.na(Significant)][(pvalue < 1)],
-  mapping = aes(x = log2FoldChange,
-                y = -log10(pvalue),
-                color = Phylum,
-                label = OTU, label1 = Genus)) +
-  theme_bw() +
-  geom_point() + 
-  geom_point(data = resdt.dds.d7.broad[(Significant)], size = 7, alpha = 0.7) + 
-  # geom_text(data = resdt[(Significant)], mapping = aes(label = paste("Genus:", Genus)), color = "black", size = 3) +
-  theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) +
-  geom_hline(yintercept = -log10(alpha)) +
-  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nDay 7 Broad Spectrum Antibiotics ~ Shedding") +
-  theme(axis.title = element_text(size=12)) +
-  theme(axis.text = element_text(size=12)) +
-  theme(legend.text = element_text(size=12)) +
-  geom_vline(xintercept = 0, lty = 2)
-volcano.d7.broad.shed
-summary(res.dds.d7.broad)
-mcols(res.dds.d7.broad, use.names = TRUE)
-
-ggplotly(volcano.d7.broad.shed)
-
-```
-
-```{r day7-shed-grid}
-grid.arrange(volcano.d7.narrow.shed, volcano.d7.broad.shed, ncol = 2)
+ggplotly(volcano.d.9.broad.shed)
 
 ```
 
@@ -1034,6 +613,11 @@ ggplotly(volcano.d0.narrow.shed)
 
 **Shedding: Day 0 Broad Spectrum Antibiotics**
 ```{r differential-abundance-testing-Shedding-d0-broad}
+sample_data(ps1)$day
+ps1.d0.broad <- subset_samples(ps1.broad, day == "0")
+sample_data(ps1.d0.broad)$day
+sample_data(ps1.d0.broad)$randomization_arm
+
 # Differential Abundance Testing
 ds.d0.broad <- phyloseq_to_deseq2(ps1.d0.broad, ~Shedding)
 
@@ -1096,131 +680,136 @@ ggplotly(volcano.d0.broad.shed)
 
 ```
 
-**Shedding: Day -9 Narrow Spectrum Antibiotics**
-```{r differential-abundance-testing-Shedding-d.9-narrow}
+**Shedding: Day 7 Narrow Spectrum Antibiotics**
+```{r differential-abundance-testing-Shedding-d7-narrow}
 # Differential Abundance Testing
-ds.d.9.narrow.shed <- phyloseq_to_deseq2(ps1.d.9.narrow, ~Shedding)
+ds.d7.narrow.shed <- phyloseq_to_deseq2(ps1.d7.narrow, ~Shedding)
 
-geoMeans.ds.d.9.narrow.shed <- apply(counts(ds.d.9.narrow.shed), 1, gm_mean)
-ds.d.9.narrow.shed <- estimateSizeFactors(ds.d.9.narrow.shed, geoMeans = geoMeans.ds.d.9.narrow.shed)
+geoMeans.ds.d7.narrow.shed <- apply(counts(ds.d7.narrow.shed), 1, gm_mean)
+ds.d7.narrow.shed <- estimateSizeFactors(ds.d7.narrow.shed, geoMeans = geoMeans.ds.d7.narrow.shed)
 
-dds.d.9.narrow.shed <- DESeq(ds.d.9.narrow.shed, test="Wald", fitType="local", betaPrior = FALSE)
+dds.d7.narrow.shed <- DESeq(ds.d7.narrow.shed, test="Wald", fitType="local", betaPrior = FALSE)
 
 alpha = 0.05
 
 # Tabulate and write results
-res.dds.d.9.narrow.shed = results(dds.d.9.narrow.shed, cooksCutoff = FALSE)
-sigtab_dds.dds.d.9.narrow.shed = res.dds.d.9.narrow.shed[which(res.dds.d.9.narrow.shed$padj < alpha), ]
-sigtab_dds.dds.d.9.narrow.shed = cbind(as(sigtab_dds.dds.d.9.narrow.shed, "data.frame"), as(tax_table(ps1.d.9.narrow)[rownames(sigtab_dds.dds.d.9.narrow.shed), ], "matrix"))
-summary(res.dds.d.9.narrow.shed)
-head(sigtab_dds.dds.d.9.narrow.shed)
-write.table(sigtab_dds.dds.d.9.narrow.shed, file="./results/deseq_d.9_narrow_Shedding.txt", sep = "\t") # Change filename to save results to appropriate file
+res.dds.d7.narrow.shed = results(dds.d7.narrow.shed, cooksCutoff = FALSE)
+sigtab_dds.dds.d7.narrow.shed = res.dds.d7.narrow.shed[which(res.dds.d7.narrow.shed$padj < alpha), ]
+sigtab_dds.dds.d7.narrow.shed = cbind(as(sigtab_dds.dds.d7.narrow.shed, "data.frame"), as(tax_table(ps1.d7.narrow)[rownames(sigtab_dds.dds.d7.narrow.shed), ], "matrix"))
+summary(res.dds.d7.narrow.shed)
+head(sigtab_dds.dds.d7.narrow.shed)
+write.table(sigtab_dds.dds.d7.narrow.shed, file="./results/deseq_d7_narrow_Shedding.txt", sep = "\t") # Change filename to save results to appropriate file
 
 # Quick check of factor levels
-mcols(res.dds.d.9.narrow.shed, use.names = TRUE)
+mcols(res.dds.d7.narrow.shed, use.names = TRUE)
 
 # Prepare to join results data.table and taxonomy table
-resdt.dds.d.9.narrow.shed = data.table(as(results(dds.d.9.narrow.shed, cooksCutoff = FALSE), "data.frame"),
+resdt.dds.d7.narrow.shed = data.table(as(results(dds.d7.narrow.shed, cooksCutoff = FALSE), "data.frame"),
                    keep.rownames = TRUE)
-setnames(resdt.dds.d.9.narrow.shed, "rn", "OTU")
-taxdt.dds.d.9.com = data.table(data.frame(as(tax_table(ps1.d.9.narrow), "matrix")), keep.rownames = TRUE)
-setnames(taxdt.dds.d.9.com, "rn", "OTU")
+setnames(resdt.dds.d7.narrow.shed, "rn", "OTU")
+taxdt.dds.d7.com = data.table(data.frame(as(tax_table(ps1.d7.narrow), "matrix")), keep.rownames = TRUE)
+setnames(taxdt.dds.d7.com, "rn", "OTU")
 
 # Join results data.table and taxonomy table
-setkeyv(taxdt.dds.d.9.com, "OTU")
-setkeyv(resdt.dds.d.9.narrow.shed, "OTU")
-resdt.dds.d.9.narrow.shed <- taxdt.dds.d.9.com[resdt.dds.d.9.narrow.shed]
-resdt.dds.d.9.narrow.shed
-resdt.dds.d.9.narrow.shed[, Significant := padj < alpha]
-resdt.dds.d.9.narrow.shed[!is.na(Significant)]
-resdt.dds.d.9.narrow.shed
+setkeyv(taxdt.dds.d7.com, "OTU")
+setkeyv(resdt.dds.d7.narrow.shed, "OTU")
+resdt.dds.d7.narrow.shed <- taxdt.dds.d7.com[resdt.dds.d7.narrow.shed]
+resdt.dds.d7.narrow.shed
+resdt.dds.d7.narrow.shed[, Significant := padj < alpha]
+resdt.dds.d7.narrow.shed[!is.na(Significant)]
+resdt.dds.d7.narrow.shed
 
-volcano.d.9.narrow.shed = ggplot(
-  data = resdt.dds.d.9.narrow.shed[!is.na(Significant)][(pvalue < 1)],
+volcano.d7.narrow.shed = ggplot(
+  data = resdt.dds.d7.narrow.shed[!is.na(Significant)][(pvalue < 1)],
   mapping = aes(x = log2FoldChange,
                 y = -log10(pvalue),
                 color = Phylum,
                 label = OTU, label1 = Genus)) +
   theme_bw() +
   geom_point() + 
-  geom_point(data = resdt.dds.d.9.narrow.shed[(Significant)], size = 7, alpha = 0.7) + 
+  geom_point(data = resdt.dds.d7.narrow.shed[(Significant)], size = 7, alpha = 0.7) + 
   # geom_text(data = resdt[(Significant)], mapping = aes(label = paste("Genus:", Genus)), color = "black", size = 3) +
   theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) +
   geom_hline(yintercept = -log10(alpha)) +
-  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nDay -9 Narrow Spectrum Antibiotics ~ Shedding") +
+  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nDay 7 Narrow Spectrum Antibiotics ~ Shedding") +
   theme(axis.title = element_text(size=12)) +
   theme(axis.text = element_text(size=12)) +
   theme(legend.text = element_text(size=12)) +
   geom_vline(xintercept = 0, lty = 2)
-volcano.d.9.narrow.shed
-summary(res.dds.d.9.narrow.shed)
-mcols(res.dds.d.9.narrow.shed, use.names = TRUE)
+volcano.d7.narrow.shed
+summary(res.dds.d7.narrow.shed)
+mcols(res.dds.d7.narrow.shed, use.names = TRUE)
 
-ggplotly(volcano.d.9.narrow.shed)
+ggplotly(volcano.d7.narrow.shed)
 
 ```
 
-**Shedding: Day -9 Broad Spectrum Antibiotics**
-```{r differential-abundance-testing-Shedding-d.9-broad}
+**Shedding: Day 7 Broad Spectrum Antibiotics**
+```{r differential-abundance-testing-Shedding-d7-broad}
+sample_data(ps1)$day
+ps1.d7.broad <- subset_samples(ps1.broad, day == "7")
+sample_data(ps1.d7.broad)$day
+sample_data(ps1.d7.broad)$randomization_arm
+
 # Differential Abundance Testing
-ds.d.9.broad <- phyloseq_to_deseq2(ps1.d.9.broad, ~Shedding)
+ds.d7.broad <- phyloseq_to_deseq2(ps1.d7.broad, ~Shedding)
 
-geoMeans.ds.d.9.broad <- apply(counts(ds.d.9.broad), 1, gm_mean)
-ds.d.9.broad <- estimateSizeFactors(ds.d.9.broad, geoMeans = geoMeans.ds.d.9.broad)
+geoMeans.ds.d7.broad <- apply(counts(ds.d7.broad), 1, gm_mean)
+ds.d7.broad <- estimateSizeFactors(ds.d7.broad, geoMeans = geoMeans.ds.d7.broad)
 
-dds.d.9.broad <- DESeq(ds.d.9.broad, test="Wald", fitType="local", betaPrior = FALSE)
+dds.d7.broad <- DESeq(ds.d7.broad, test="Wald", fitType="local", betaPrior = FALSE)
 
 alpha = 0.05
 
 # Tabulate and write results
-res.dds.d.9.broad = results(dds.d.9.broad, cooksCutoff = FALSE)
-sigtab_dds.dds.d.9.broad = res.dds.d.9.broad[which(res.dds.d.9.broad$padj < alpha), ]
-sigtab_dds.dds.d.9.broad = cbind(as(sigtab_dds.dds.d.9.broad, "data.frame"), as(tax_table(ps1.d.9.broad)[rownames(sigtab_dds.dds.d.9.broad), ], "matrix"))
-summary(res.dds.d.9.broad)
-head(sigtab_dds.dds.d.9.broad)
-write.table(sigtab_dds.dds.d.9.broad, file="./results/deseq_d.9_broad_Shedding.txt", sep = "\t") # Change filename to save results to appropriate file
+res.dds.d7.broad = results(dds.d7.broad, cooksCutoff = FALSE)
+sigtab_dds.dds.d7.broad = res.dds.d7.broad[which(res.dds.d7.broad$padj < alpha), ]
+sigtab_dds.dds.d7.broad = cbind(as(sigtab_dds.dds.d7.broad, "data.frame"), as(tax_table(ps1.d7.broad)[rownames(sigtab_dds.dds.d7.broad), ], "matrix"))
+summary(res.dds.d7.broad)
+head(sigtab_dds.dds.d7.broad)
+write.table(sigtab_dds.dds.d7.broad, file="./results/deseq_d7_broad_Shedding.txt", sep = "\t") # Change filename to save results to appropriate file
 
 # Quick check of factor levels
-mcols(res.dds.d.9.broad, use.names = TRUE)
+mcols(res.dds.d7.broad, use.names = TRUE)
 
 # Prepare to join results data.table and taxonomy table
-resdt.dds.d.9.broad = data.table(as(results(dds.d.9.broad, cooksCutoff = FALSE), "data.frame"),
+resdt.dds.d7.broad = data.table(as(results(dds.d7.broad, cooksCutoff = FALSE), "data.frame"),
                    keep.rownames = TRUE)
-setnames(resdt.dds.d.9.broad, "rn", "OTU")
-taxdt.dds.d.9.com = data.table(data.frame(as(tax_table(ps1.d.9.broad), "matrix")), keep.rownames = TRUE)
-setnames(taxdt.dds.d.9.com, "rn", "OTU")
+setnames(resdt.dds.d7.broad, "rn", "OTU")
+taxdt.dds.d7.com = data.table(data.frame(as(tax_table(ps1.d7.broad), "matrix")), keep.rownames = TRUE)
+setnames(taxdt.dds.d7.com, "rn", "OTU")
 
 # Join results data.table and taxonomy table
-setkeyv(taxdt.dds.d.9.com, "OTU")
-setkeyv(resdt.dds.d.9.broad, "OTU")
-resdt.dds.d.9.broad <- taxdt.dds.d.9.com[resdt.dds.d.9.broad]
-resdt.dds.d.9.broad
-resdt.dds.d.9.broad[, Significant := padj < alpha]
-resdt.dds.d.9.broad[!is.na(Significant)]
-resdt.dds.d.9.broad
+setkeyv(taxdt.dds.d7.com, "OTU")
+setkeyv(resdt.dds.d7.broad, "OTU")
+resdt.dds.d7.broad <- taxdt.dds.d7.com[resdt.dds.d7.broad]
+resdt.dds.d7.broad
+resdt.dds.d7.broad[, Significant := padj < alpha]
+resdt.dds.d7.broad[!is.na(Significant)]
+resdt.dds.d7.broad
 
-volcano.d.9.broad.shed = ggplot(
-  data = resdt.dds.d.9.broad[!is.na(Significant)][(pvalue < 1)],
+volcano.d7.broad.shed = ggplot(
+  data = resdt.dds.d7.broad[!is.na(Significant)][(pvalue < 1)],
   mapping = aes(x = log2FoldChange,
                 y = -log10(pvalue),
                 color = Phylum,
                 label = OTU, label1 = Genus)) +
   theme_bw() +
   geom_point() + 
-  geom_point(data = resdt.dds.d.9.broad[(Significant)], size = 7, alpha = 0.7) + 
+  geom_point(data = resdt.dds.d7.broad[(Significant)], size = 7, alpha = 0.7) + 
   # geom_text(data = resdt[(Significant)], mapping = aes(label = paste("Genus:", Genus)), color = "black", size = 3) +
   theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) +
   geom_hline(yintercept = -log10(alpha)) +
-  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nDay -9 Broad Spectrum Antibiotics ~ Shedding") +
+  ggtitle("DESeq2 Negative Binomial Test Volcano Plot\nDay 7 Broad Spectrum Antibiotics ~ Shedding") +
   theme(axis.title = element_text(size=12)) +
   theme(axis.text = element_text(size=12)) +
   theme(legend.text = element_text(size=12)) +
   geom_vline(xintercept = 0, lty = 2)
-volcano.d.9.broad.shed
-summary(res.dds.d.9.broad)
-mcols(res.dds.d.9.broad, use.names = TRUE)
+volcano.d7.broad.shed
+summary(res.dds.d7.broad)
+mcols(res.dds.d7.broad, use.names = TRUE)
 
-ggplotly(volcano.d.9.broad.shed)
+ggplotly(volcano.d7.broad.shed)
 
 ```
 
@@ -1237,7 +826,7 @@ sample_data(ps1)$randomization_arm
 ps1.d7.boost_narrow_v_broad <- ps1 %>%
   subset_samples(
     day == "7" &
-    d7_rota_boost_updated == "boost" &
+    d7_rota_boost_updated == "Yes" &
     randomization_arm != "No antibiotics"
   )
 sample_data(ps1.d7.boost_narrow_v_broad)$day
