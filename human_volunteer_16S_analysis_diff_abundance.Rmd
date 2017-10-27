@@ -66,11 +66,6 @@ sample_variables(ps1)
 sd(sample_sums(ps1))
 get_taxa_unique(ps1, "Phylum")
 
-# Change day 7 rota boost factor levels to be DeSeq2 worthy
-sample_data(ps1)$d7_roto_boost
-sample_data(ps1)$d7_roto_boost <- factor(sample_data(ps1)$d7_roto_boost, labels = c("no_boost", "boost"))
-sample_data(ps1)$d7_roto_boost
-
 ```
 
 ```{r subsetting, include = FALSE}
@@ -106,7 +101,6 @@ ps1.narrow
 ps1.broad <- subset_samples(ps1, randomization_arm == "Broad spectrum antibiotics")
 ps1.broad
 
-
 ```
 
 ##Differential abundance testing
@@ -116,23 +110,14 @@ ps1.broad
 class(sample_data(ps1.con)$day)
 sample_data(ps1.con)$day <- factor(sample_data(ps1.con)$day)
 class(sample_data(ps1.con)$day)
-sample_data(ps1.con)$d7_roto_boost
-sample_data(ps1.con)$d7_roto_boost <- factor(sample_data(ps1.con)$d7_roto_boost, labels = c("no_boost", "boost"))
-sample_data(ps1.con)$d7_roto_boost
 
 class(sample_data(ps1.narrow)$day)
 sample_data(ps1.narrow)$day <- factor(sample_data(ps1.narrow)$day)
 class(sample_data(ps1.narrow)$day)
-sample_data(ps1.narrow)$d7_roto_boost
-sample_data(ps1.narrow)$d7_roto_boost <- factor(sample_data(ps1.narrow)$d7_roto_boost, labels = c("no_boost", "boost"))
-sample_data(ps1.narrow)$d7_roto_boost
 
 class(sample_data(ps1.broad)$day)
 sample_data(ps1.broad)$day <- factor(sample_data(ps1.broad)$day)
 class(sample_data(ps1.broad)$day)
-sample_data(ps1.broad)$d7_roto_boost
-sample_data(ps1.broad)$d7_roto_boost <- factor(sample_data(ps1.broad)$d7_roto_boost, labels = c("no_boost", "boost"))
-sample_data(ps1.broad)$d7_roto_boost
 
 # Calculate geometric means prior to estimate size factors
 # This is required for data sets with lots of zeros
@@ -146,48 +131,20 @@ gm_mean = function(x, na.rm=TRUE){
 
 **1) Rotavirus Boost or Not**
 
-**BOOST: CONTROL SAMPLES**
-```{r diff-abund-rotaboost-control-LRT}
-# Test for taxa which at one or more time points after time 0 showed a d7-rota-boost-specific effect
-# Convert phyloseq object to DeSeq2 table
-ds.boost.cont.LRT <- phyloseq_to_deseq2(ps1.con, ~d7_roto_boost + day + d7_roto_boost:day)
-
-# Calculate geometric means prior to estimate size factors
-geoMeans.ds.boost.cont.LRT <- apply(counts(ds.boost.cont.LRT), 1, gm_mean)
-ds.boost.cont.LRT <- estimateSizeFactors(ds.boost.cont.LRT, geoMeans = geoMeans.ds.boost.cont.LRT)
-
-# Run DeSeq2
-dds.boost.cont.LRT <- DESeq(ds.boost.cont.LRT, test="LRT", reduced = ~d7_roto_boost + day)
-
-# Tabulate results
-res.dds.boost.cont.LRT = results(dds.boost.cont.LRT)
-res.dds.boost.cont.LRT$symbol <- mcols(dds.boost.cont.LRT)$symbol
-head(res.dds.boost.cont.LRT[order(res.dds.boost.cont.LRT$padj), ], 4)
-write.table(res.dds.boost.cont.LRT, file = "./results/deseq_rotaboost_control_LRT.txt", sep = "\t")
-mcols(res.dds.boost.cont.LRT)
-summary(res.dds.boost.cont.LRT)
-
-# Plot taxa with lowest p-value
-fiss.dds.boost.cont.LRT <- plotCounts(dds.boost.cont.LRT, which.min(res.dds.boost.cont.LRT$padj), 
-                   intgroup = c("day","d7_roto_boost"), returnData = TRUE)
-ggplot(fiss.dds.boost.cont.LRT,
-  aes(x = as.numeric(day), y = count, color = d7_roto_boost, group = d7_roto_boost)) + 
-  geom_point() + geom_smooth(se = FALSE, method = "loess") + scale_y_log10()
-
-```
+Only testing for categories where there were > 2 samples per variable (boost or Shedding)
 
 **BOOST: NARROW SPECTRUM ANTIBIOTICS SAMPLES**
 ```{r diff-abund-rotaboost-narrow-LRT}
 # Test for taxa which at one or more time points after time 0 showed a d7-rota-boost-specific effect
 # Convert phyloseq object to DeSeq2 table
-ds.boost.narrow.LRT <- phyloseq_to_deseq2(ps1.narrow, ~d7_roto_boost + day + d7_roto_boost:day)
+ds.boost.narrow.LRT <- phyloseq_to_deseq2(ps1.narrow, ~d7_rota_boost_updated + day + d7_rota_boost_updated:day)
 
 # Calculate geometric means prior to estimate size factors
 geoMeans.ds.boost.narrow.LRT <- apply(counts(ds.boost.narrow.LRT), 1, gm_mean)
 ds.boost.narrow.LRT <- estimateSizeFactors(ds.boost.narrow.LRT, geoMeans = geoMeans.ds.boost.narrow.LRT)
 
 # Run DeSeq2
-dds.boost.narrow.LRT <- DESeq(ds.boost.narrow.LRT, test="LRT", reduced = ~d7_roto_boost + day)
+dds.boost.narrow.LRT <- DESeq(ds.boost.narrow.LRT, test="LRT", reduced = ~d7_rota_boost_updated + day)
 
 # Tabulate results
 res.dds.boost.narrow.LRT = results(dds.boost.narrow.LRT)
@@ -199,107 +156,48 @@ summary(res.dds.boost.narrow.LRT)
 
 # Plot taxa with lowest p-value
 fiss.dds.boost.narrow.LRT <- plotCounts(dds.boost.narrow.LRT, which.min(res.dds.boost.narrow.LRT$padj), 
-                   intgroup = c("day","d7_roto_boost"), returnData = TRUE)
+                   intgroup = c("day","d7_rota_boost_updated"), returnData = TRUE)
 ggplot(fiss.dds.boost.narrow.LRT,
-  aes(x = as.numeric(day), y = count, color = d7_roto_boost, group = d7_roto_boost)) + 
+  aes(x = as.numeric(day), y = count, color = d7_rota_boost_updated, group = d7_rota_boost_updated)) + 
   geom_point() + geom_smooth(se = FALSE, method = "loess") + scale_y_log10()
 
 ```
 
-**BOOST: BROAD SPECTRUM ANTIBIOTICS SAMPLES**
-```{r diff-abund-rotaboost-broad-LRT}
-# Test for taxa which at one or more time points after time 0 showed a d7-rota-boost-specific effect
-# Convert phyloseq object to DeSeq2 table
-ds.boost.broad.LRT <- phyloseq_to_deseq2(ps1.broad, ~d7_roto_boost + day + d7_roto_boost:day)
-
-# Calculate geometric means prior to estimate size factors
-geoMeans.ds.boost.broad.LRT <- apply(counts(ds.boost.broad.LRT), 1, gm_mean)
-ds.boost.broad.LRT <- estimateSizeFactors(ds.boost.broad.LRT, geoMeans = geoMeans.ds.boost.broad.LRT)
-
-# Run DeSeq2
-dds.boost.broad.LRT <- DESeq(ds.boost.broad.LRT, test="LRT", reduced = ~d7_roto_boost + day)
-
-# Tabulate results
-res.dds.boost.broad.LRT = results(dds.boost.broad.LRT)
-res.dds.boost.broad.LRT$symbol <- mcols(dds.boost.broad.LRT)$symbol
-head(res.dds.boost.broad.LRT[order(res.dds.boost.broad.LRT$padj), ], 4)
-write.table(res.dds.boost.broad.LRT, file = "./results/deseq_rotaboost_braod_LRT.txt", sep = "\t")
-mcols(res.dds.boost.broad.LRT)
-summary(res.dds.boost.broad.LRT)
-
-# Plot taxa with lowest p-value
-fiss.dds.boost.broad.LRT <- plotCounts(dds.boost.broad.LRT, which.min(res.dds.boost.broad.LRT$padj), 
-                   intgroup = c("day","d7_roto_boost"), returnData = TRUE)
-ggplot(fiss.dds.boost.broad.LRT,
-  aes(x = as.numeric(day), y = count, color = d7_roto_boost, group = d7_roto_boost)) + 
-  geom_point() + geom_smooth(se = FALSE, method = "loess") + scale_y_log10()
-
-```
-**Interpretation:** There are no differentially abundant taxa in any of the randomization arms at any time point between samples that boosted and those that did not boost.
+**Interpretation:** There are no differentially abundant taxa in any of the randomization arms at any time point between samples that boosted and those that did not boost in narrow spectrum antibiotics treated samples.
 
 **2) Shedding or Not:** Control samples not analyzed as two few shedders in that group.
 
-**SHEDDING: NARROW SPECTRUM ANTIBIOTICS SAMPLES**
-```{r diff-abund-shedding-narrow-LRT}
-# Test for taxa which at one or more time points after time 0 showed a shedding-specific effect
+**Shedding: NARROW SPECTRUM ANTIBIOTICS SAMPLES**
+```{r diff-abund-Shedding-narrow-LRT}
+# Test for taxa which at one or more time points after time 0 showed a Shedding-specific effect
 # Convert phyloseq object to DeSeq2 table
-ds.shedding.narrow.LRT <- phyloseq_to_deseq2(ps1.narrow, ~shedding + day + shedding:day)
+ds.Shedding.narrow.LRT <- phyloseq_to_deseq2(ps1.narrow, ~Shedding + day + Shedding:day)
 
 # Calculate geometric means prior to estimate size factors
-geoMeans.ds.shedding.narrow.LRT <- apply(counts(ds.shedding.narrow.LRT), 1, gm_mean)
-ds.shedding.narrow.LRT <- estimateSizeFactors(ds.shedding.narrow.LRT, geoMeans = geoMeans.ds.shedding.narrow.LRT)
+geoMeans.ds.Shedding.narrow.LRT <- apply(counts(ds.Shedding.narrow.LRT), 1, gm_mean)
+ds.Shedding.narrow.LRT <- estimateSizeFactors(ds.Shedding.narrow.LRT, geoMeans = geoMeans.ds.Shedding.narrow.LRT)
 
 # Run DeSeq2
-dds.shedding.narrow.LRT <- DESeq(ds.shedding.narrow.LRT, test="LRT", reduced = ~shedding + day)
+dds.Shedding.narrow.LRT <- DESeq(ds.Shedding.narrow.LRT, test="LRT", reduced = ~Shedding + day)
 
 # Tabulate results
-res.dds.shedding.narrow.LRT = results(dds.shedding.narrow.LRT)
-res.dds.shedding.narrow.LRT$symbol <- mcols(dds.shedding.narrow.LRT)$symbol
-head(res.dds.shedding.narrow.LRT[order(res.dds.shedding.narrow.LRT$padj), ], 4)
-write.table(res.dds.shedding.narrow.LRT, file = "./results/deseq_shedding_narrow_LRT.txt", sep = "\t")
-mcols(res.dds.shedding.narrow.LRT)
-summary(res.dds.shedding.narrow.LRT)
+res.dds.Shedding.narrow.LRT = results(dds.Shedding.narrow.LRT)
+res.dds.Shedding.narrow.LRT$symbol <- mcols(dds.Shedding.narrow.LRT)$symbol
+head(res.dds.Shedding.narrow.LRT[order(res.dds.Shedding.narrow.LRT$padj), ], 4)
+write.table(res.dds.Shedding.narrow.LRT, file = "./results/deseq_Shedding_narrow_LRT.txt", sep = "\t")
+mcols(res.dds.Shedding.narrow.LRT)
+summary(res.dds.Shedding.narrow.LRT)
 
 # Plot taxa with lowest p-value
-fiss.dds.shedding.narrow.LRT <- plotCounts(dds.shedding.narrow.LRT, which.min(res.dds.shedding.narrow.LRT$padj), 
-                   intgroup = c("day","d7_roto_boost"), returnData = TRUE)
-ggplot(fiss.dds.shedding.narrow.LRT,
-  aes(x = as.numeric(day), y = count, color = d7_roto_boost, group = d7_roto_boost)) + 
+fiss.dds.Shedding.narrow.LRT <- plotCounts(dds.Shedding.narrow.LRT, which.min(res.dds.Shedding.narrow.LRT$padj), 
+                   intgroup = c("day","d7_rota_boost_updated"), returnData = TRUE)
+ggplot(fiss.dds.Shedding.narrow.LRT,
+  aes(x = as.numeric(day), y = count, color = d7_rota_boost_updated, group = d7_rota_boost_updated)) + 
   geom_point() + geom_smooth(se = FALSE, method = "loess") + scale_y_log10()
 
 ```
 
-**SHEDDING: BROAD SPECTRUM ANTIBIOTICS SAMPLES**
-```{r diff-abund-shedding-broad-LRT}
-# Test for taxa which at one or more time points after time 0 showed a shedding-specific effect
-# Convert phyloseq object to DeSeq2 table
-ds.shedding.broad.LRT <- phyloseq_to_deseq2(ps1.broad, ~shedding + day + shedding:day)
-
-# Calculate geometric means prior to estimate size factors
-geoMeans.ds.shedding.broad.LRT <- apply(counts(ds.shedding.broad.LRT), 1, gm_mean)
-ds.shedding.broad.LRT <- estimateSizeFactors(ds.shedding.broad.LRT, geoMeans = geoMeans.ds.shedding.broad.LRT)
-
-# Run DeSeq2
-dds.shedding.broad.LRT <- DESeq(ds.shedding.broad.LRT, test="LRT", reduced = ~shedding + day)
-
-# Tabulate results
-res.dds.shedding.broad.LRT = results(dds.shedding.broad.LRT)
-res.dds.shedding.broad.LRT$symbol <- mcols(dds.shedding.broad.LRT)$symbol
-head(res.dds.shedding.broad.LRT[order(res.dds.shedding.broad.LRT$padj), ], 4)
-write.table(res.dds.shedding.broad.LRT, file = "./results/deseq_shedding_braod_LRT.txt", sep = "\t")
-mcols(res.dds.shedding.broad.LRT)
-summary(res.dds.shedding.broad.LRT)
-
-# Plot taxa with lowest p-value
-fiss.dds.shedding.broad.LRT <- plotCounts(dds.shedding.broad.LRT, which.min(res.dds.shedding.broad.LRT$padj), 
-                   intgroup = c("day","d7_roto_boost"), returnData = TRUE)
-ggplot(fiss.dds.shedding.broad.LRT,
-  aes(x = as.numeric(day), y = count, color = d7_roto_boost, group = d7_roto_boost)) + 
-  geom_point() + geom_smooth(se = FALSE, method = "loess") + scale_y_log10()
-
-```
-
-**Interpretation:** There are no differentially abundant taxa in any of the randomization arms at any time point between samples that shed rotavirus and those that did not shed
+**Interpretation:** There are no differentially abundant taxa in any of the randomization arms at any time point between samples that shed rotavirus and those that did not.
 
 **Pairwise differential abundance testing
 
@@ -313,7 +211,7 @@ sample_data(ps1.d7.con)$day
 sample_data(ps1.d7.con)$randomization_arm
 
 # Differential Abundance Testing
-ds.d7.con <- phyloseq_to_deseq2(ps1.d7.con, ~d7_roto_boost)
+ds.d7.con <- phyloseq_to_deseq2(ps1.d7.con, ~d7_rota_boost_updated)
 
 geoMeans.ds.d7.con <- apply(counts(ds.d7.con), 1, gm_mean)
 ds.d7.con <- estimateSizeFactors(ds.d7.con, geoMeans = geoMeans.ds.d7.con)
@@ -382,7 +280,7 @@ sample_data(ps1.d7.narrow)$day
 sample_data(ps1.d7.narrow)$randomization_arm
 
 # Differential Abundance Testing
-ds.d7.narrow <- phyloseq_to_deseq2(ps1.d7.narrow, ~d7_roto_boost)
+ds.d7.narrow <- phyloseq_to_deseq2(ps1.d7.narrow, ~d7_rota_boost_updated)
 
 geoMeans.ds.d7.narrow <- apply(counts(ds.d7.narrow), 1, gm_mean)
 ds.d7.narrow <- estimateSizeFactors(ds.d7.narrow, geoMeans = geoMeans.ds.d7.narrow)
@@ -450,7 +348,7 @@ ps1.d7.broad <- subset_samples(ps1.broad, day == "7")
 sample_data(ps1.d7.broad)$day
 
 # Differential Abundance Testing
-ds.d7.broad <- phyloseq_to_deseq2(ps1.d7.broad, ~d7_roto_boost)
+ds.d7.broad <- phyloseq_to_deseq2(ps1.d7.broad, ~d7_rota_boost_updated)
 
 geoMeans.ds.d7.broad <- apply(counts(ds.d7.broad), 1, gm_mean)
 ds.d7.broad <- estimateSizeFactors(ds.d7.broad, geoMeans = geoMeans.ds.d7.broad)
@@ -524,7 +422,7 @@ sample_data(ps1.d0.con)$day
 sample_data(ps1.d0.con)$randomization_arm
 
 # Differential Abundance Testing
-ds.d0.con <- phyloseq_to_deseq2(ps1.d0.con, ~d7_roto_boost)
+ds.d0.con <- phyloseq_to_deseq2(ps1.d0.con, ~d7_rota_boost_updated)
 
 geoMeans.ds.d0.con <- apply(counts(ds.d0.con), 1, gm_mean)
 ds.d0.con <- estimateSizeFactors(ds.d0.con, geoMeans = geoMeans.ds.d0.con)
@@ -593,7 +491,7 @@ sample_data(ps1.d0.narrow)$day
 sample_data(ps1.d0.narrow)$randomization_arm
 
 # Differential Abundance Testing
-ds.d0.narrow <- phyloseq_to_deseq2(ps1.d0.narrow, ~d7_roto_boost)
+ds.d0.narrow <- phyloseq_to_deseq2(ps1.d0.narrow, ~d7_rota_boost_updated)
 
 geoMeans.ds.d0.narrow <- apply(counts(ds.d0.narrow), 1, gm_mean)
 ds.d0.narrow <- estimateSizeFactors(ds.d0.narrow, geoMeans = geoMeans.ds.d0.narrow)
@@ -662,7 +560,7 @@ sample_data(ps1.d0.broad)$day
 sample_data(ps1.d0.broad)$randomization_arm
 
 # Differential Abundance Testing
-ds.d0.broad <- phyloseq_to_deseq2(ps1.d0.broad, ~d7_roto_boost)
+ds.d0.broad <- phyloseq_to_deseq2(ps1.d0.broad, ~d7_rota_boost_updated)
 
 geoMeans.ds.d0.broad <- apply(counts(ds.d0.broad), 1, gm_mean)
 ds.d0.broad <- estimateSizeFactors(ds.d0.broad, geoMeans = geoMeans.ds.d0.broad)
@@ -732,7 +630,7 @@ sample_data(ps1.d.9.con)$day
 sample_data(ps1.d.9.con)$randomization_arm
 
 # Differential Abundance Testing
-ds.d.9.con <- phyloseq_to_deseq2(ps1.d.9.con, ~d7_roto_boost)
+ds.d.9.con <- phyloseq_to_deseq2(ps1.d.9.con, ~d7_rota_boost_updated)
 
 geoMeans.ds.d.9.con <- apply(counts(ds.d.9.con), 1, gm_mean)
 ds.d.9.con <- estimateSizeFactors(ds.d.9.con, geoMeans = geoMeans.ds.d.9.con)
@@ -801,7 +699,7 @@ sample_data(ps1.d.9.narrow)$day
 sample_data(ps1.d.9.narrow)$randomization_arm
 
 # Differential Abundance Testing
-ds.d.9.narrow <- phyloseq_to_deseq2(ps1.d.9.narrow, ~d7_roto_boost)
+ds.d.9.narrow <- phyloseq_to_deseq2(ps1.d.9.narrow, ~d7_rota_boost_updated)
 
 geoMeans.ds.d.9.narrow <- apply(counts(ds.d.9.narrow), 1, gm_mean)
 ds.d.9.narrow <- estimateSizeFactors(ds.d.9.narrow, geoMeans = geoMeans.ds.d.9.narrow)
@@ -869,7 +767,7 @@ ps1.d.9.broad <- subset_samples(ps1.broad, day == "-9")
 sample_data(ps1.d.9.broad)$day
 
 # Differential Abundance Testing
-ds.d.9.broad <- phyloseq_to_deseq2(ps1.d.9.broad, ~d7_roto_boost)
+ds.d.9.broad <- phyloseq_to_deseq2(ps1.d.9.broad, ~d7_rota_boost_updated)
 
 geoMeans.ds.d.9.broad <- apply(counts(ds.d.9.broad), 1, gm_mean)
 ds.d.9.broad <- estimateSizeFactors(ds.d.9.broad, geoMeans = geoMeans.ds.d.9.broad)
@@ -935,12 +833,12 @@ grid.arrange(volcano.d.9.con.boost, volcano.d0.con.boost, volcano.d7.con.boost, 
 
 ```
 
-**SHEDDING**
+**Shedding**
 
-**SHEDDING: Day 7 Narrow Spectrum Antibiotics**
-```{r differential-abundance-testing-shedding-d7-narrow}
+**Shedding: Day 7 Narrow Spectrum Antibiotics**
+```{r differential-abundance-testing-Shedding-d7-narrow}
 # Differential Abundance Testing
-ds.d7.narrow.shed <- phyloseq_to_deseq2(ps1.d7.narrow, ~shedding)
+ds.d7.narrow.shed <- phyloseq_to_deseq2(ps1.d7.narrow, ~Shedding)
 
 geoMeans.ds.d7.narrow.shed <- apply(counts(ds.d7.narrow.shed), 1, gm_mean)
 ds.d7.narrow.shed <- estimateSizeFactors(ds.d7.narrow.shed, geoMeans = geoMeans.ds.d7.narrow.shed)
@@ -955,7 +853,7 @@ sigtab_dds.dds.d7.narrow.shed = res.dds.d7.narrow.shed[which(res.dds.d7.narrow.s
 sigtab_dds.dds.d7.narrow.shed = cbind(as(sigtab_dds.dds.d7.narrow.shed, "data.frame"), as(tax_table(ps1.d7.narrow)[rownames(sigtab_dds.dds.d7.narrow.shed), ], "matrix"))
 summary(res.dds.d7.narrow.shed)
 head(sigtab_dds.dds.d7.narrow.shed)
-write.table(sigtab_dds.dds.d7.narrow.shed, file="./results/deseq_d7_narrow_shedding.txt", sep = "\t") # Change filename to save results to appropriate file
+write.table(sigtab_dds.dds.d7.narrow.shed, file="./results/deseq_d7_narrow_Shedding.txt", sep = "\t") # Change filename to save results to appropriate file
 
 # Quick check of factor levels
 mcols(res.dds.d7.narrow.shed, use.names = TRUE)
@@ -1001,10 +899,10 @@ ggplotly(volcano.d7.narrow.shed)
 
 ```
 
-**SHEDDING: Day 7 Broad Spectrum Antibiotics**
-```{r differential-abundance-testing-shedding-d7-broad}
+**Shedding: Day 7 Broad Spectrum Antibiotics**
+```{r differential-abundance-testing-Shedding-d7-broad}
 # Differential Abundance Testing
-ds.d7.broad <- phyloseq_to_deseq2(ps1.d7.broad, ~shedding)
+ds.d7.broad <- phyloseq_to_deseq2(ps1.d7.broad, ~Shedding)
 
 geoMeans.ds.d7.broad <- apply(counts(ds.d7.broad), 1, gm_mean)
 ds.d7.broad <- estimateSizeFactors(ds.d7.broad, geoMeans = geoMeans.ds.d7.broad)
@@ -1019,7 +917,7 @@ sigtab_dds.dds.d7.broad = res.dds.d7.broad[which(res.dds.d7.broad$padj < alpha),
 sigtab_dds.dds.d7.broad = cbind(as(sigtab_dds.dds.d7.broad, "data.frame"), as(tax_table(ps1.d7.broad)[rownames(sigtab_dds.dds.d7.broad), ], "matrix"))
 summary(res.dds.d7.broad)
 head(sigtab_dds.dds.d7.broad)
-write.table(sigtab_dds.dds.d7.broad, file="./results/deseq_d7_broad_shedding.txt", sep = "\t") # Change filename to save results to appropriate file
+write.table(sigtab_dds.dds.d7.broad, file="./results/deseq_d7_broad_Shedding.txt", sep = "\t") # Change filename to save results to appropriate file
 
 # Quick check of factor levels
 mcols(res.dds.d7.broad, use.names = TRUE)
@@ -1070,10 +968,10 @@ grid.arrange(volcano.d7.narrow.shed, volcano.d7.broad.shed, ncol = 2)
 
 ```
 
-**SHEDDING: Day 0 Narrow Spectrum Antibiotics**
-```{r differential-abundance-testing-shedding-d0-narrow}
+**Shedding: Day 0 Narrow Spectrum Antibiotics**
+```{r differential-abundance-testing-Shedding-d0-narrow}
 # Differential Abundance Testing
-ds.d0.narrow.shed <- phyloseq_to_deseq2(ps1.d0.narrow, ~shedding)
+ds.d0.narrow.shed <- phyloseq_to_deseq2(ps1.d0.narrow, ~Shedding)
 
 geoMeans.ds.d0.narrow.shed <- apply(counts(ds.d0.narrow.shed), 1, gm_mean)
 ds.d0.narrow.shed <- estimateSizeFactors(ds.d0.narrow.shed, geoMeans = geoMeans.ds.d0.narrow.shed)
@@ -1088,7 +986,7 @@ sigtab_dds.dds.d0.narrow.shed = res.dds.d0.narrow.shed[which(res.dds.d0.narrow.s
 sigtab_dds.dds.d0.narrow.shed = cbind(as(sigtab_dds.dds.d0.narrow.shed, "data.frame"), as(tax_table(ps1.d0.narrow)[rownames(sigtab_dds.dds.d0.narrow.shed), ], "matrix"))
 summary(res.dds.d0.narrow.shed)
 head(sigtab_dds.dds.d0.narrow.shed)
-write.table(sigtab_dds.dds.d0.narrow.shed, file="./results/deseq_d0_narrow_shedding.txt", sep = "\t") # Change filename to save results to appropriate file
+write.table(sigtab_dds.dds.d0.narrow.shed, file="./results/deseq_d0_narrow_Shedding.txt", sep = "\t") # Change filename to save results to appropriate file
 
 # Quick check of factor levels
 mcols(res.dds.d0.narrow.shed, use.names = TRUE)
@@ -1134,10 +1032,10 @@ ggplotly(volcano.d0.narrow.shed)
 
 ```
 
-**SHEDDING: Day 0 Broad Spectrum Antibiotics**
-```{r differential-abundance-testing-shedding-d0-broad}
+**Shedding: Day 0 Broad Spectrum Antibiotics**
+```{r differential-abundance-testing-Shedding-d0-broad}
 # Differential Abundance Testing
-ds.d0.broad <- phyloseq_to_deseq2(ps1.d0.broad, ~shedding)
+ds.d0.broad <- phyloseq_to_deseq2(ps1.d0.broad, ~Shedding)
 
 geoMeans.ds.d0.broad <- apply(counts(ds.d0.broad), 1, gm_mean)
 ds.d0.broad <- estimateSizeFactors(ds.d0.broad, geoMeans = geoMeans.ds.d0.broad)
@@ -1152,7 +1050,7 @@ sigtab_dds.dds.d0.broad = res.dds.d0.broad[which(res.dds.d0.broad$padj < alpha),
 sigtab_dds.dds.d0.broad = cbind(as(sigtab_dds.dds.d0.broad, "data.frame"), as(tax_table(ps1.d0.broad)[rownames(sigtab_dds.dds.d0.broad), ], "matrix"))
 summary(res.dds.d0.broad)
 head(sigtab_dds.dds.d0.broad)
-write.table(sigtab_dds.dds.d0.broad, file="./results/deseq_d0_broad_shedding.txt", sep = "\t") # Change filename to save results to appropriate file
+write.table(sigtab_dds.dds.d0.broad, file="./results/deseq_d0_broad_Shedding.txt", sep = "\t") # Change filename to save results to appropriate file
 
 # Quick check of factor levels
 mcols(res.dds.d0.broad, use.names = TRUE)
@@ -1198,10 +1096,10 @@ ggplotly(volcano.d0.broad.shed)
 
 ```
 
-**SHEDDING: Day -9 Narrow Spectrum Antibiotics**
-```{r differential-abundance-testing-shedding-d.9-narrow}
+**Shedding: Day -9 Narrow Spectrum Antibiotics**
+```{r differential-abundance-testing-Shedding-d.9-narrow}
 # Differential Abundance Testing
-ds.d.9.narrow.shed <- phyloseq_to_deseq2(ps1.d.9.narrow, ~shedding)
+ds.d.9.narrow.shed <- phyloseq_to_deseq2(ps1.d.9.narrow, ~Shedding)
 
 geoMeans.ds.d.9.narrow.shed <- apply(counts(ds.d.9.narrow.shed), 1, gm_mean)
 ds.d.9.narrow.shed <- estimateSizeFactors(ds.d.9.narrow.shed, geoMeans = geoMeans.ds.d.9.narrow.shed)
@@ -1216,7 +1114,7 @@ sigtab_dds.dds.d.9.narrow.shed = res.dds.d.9.narrow.shed[which(res.dds.d.9.narro
 sigtab_dds.dds.d.9.narrow.shed = cbind(as(sigtab_dds.dds.d.9.narrow.shed, "data.frame"), as(tax_table(ps1.d.9.narrow)[rownames(sigtab_dds.dds.d.9.narrow.shed), ], "matrix"))
 summary(res.dds.d.9.narrow.shed)
 head(sigtab_dds.dds.d.9.narrow.shed)
-write.table(sigtab_dds.dds.d.9.narrow.shed, file="./results/deseq_d.9_narrow_shedding.txt", sep = "\t") # Change filename to save results to appropriate file
+write.table(sigtab_dds.dds.d.9.narrow.shed, file="./results/deseq_d.9_narrow_Shedding.txt", sep = "\t") # Change filename to save results to appropriate file
 
 # Quick check of factor levels
 mcols(res.dds.d.9.narrow.shed, use.names = TRUE)
@@ -1262,10 +1160,10 @@ ggplotly(volcano.d.9.narrow.shed)
 
 ```
 
-**SHEDDING: Day -9 Broad Spectrum Antibiotics**
-```{r differential-abundance-testing-shedding-d.9-broad}
+**Shedding: Day -9 Broad Spectrum Antibiotics**
+```{r differential-abundance-testing-Shedding-d.9-broad}
 # Differential Abundance Testing
-ds.d.9.broad <- phyloseq_to_deseq2(ps1.d.9.broad, ~shedding)
+ds.d.9.broad <- phyloseq_to_deseq2(ps1.d.9.broad, ~Shedding)
 
 geoMeans.ds.d.9.broad <- apply(counts(ds.d.9.broad), 1, gm_mean)
 ds.d.9.broad <- estimateSizeFactors(ds.d.9.broad, geoMeans = geoMeans.ds.d.9.broad)
@@ -1280,7 +1178,7 @@ sigtab_dds.dds.d.9.broad = res.dds.d.9.broad[which(res.dds.d.9.broad$padj < alph
 sigtab_dds.dds.d.9.broad = cbind(as(sigtab_dds.dds.d.9.broad, "data.frame"), as(tax_table(ps1.d.9.broad)[rownames(sigtab_dds.dds.d.9.broad), ], "matrix"))
 summary(res.dds.d.9.broad)
 head(sigtab_dds.dds.d.9.broad)
-write.table(sigtab_dds.dds.d.9.broad, file="./results/deseq_d.9_broad_shedding.txt", sep = "\t") # Change filename to save results to appropriate file
+write.table(sigtab_dds.dds.d.9.broad, file="./results/deseq_d.9_broad_Shedding.txt", sep = "\t") # Change filename to save results to appropriate file
 
 # Quick check of factor levels
 mcols(res.dds.d.9.broad, use.names = TRUE)
@@ -1332,18 +1230,18 @@ grid.arrange(volcano.d.9.narrow.shed, volcano.d0.narrow.shed, volcano.d7.narrow.
 ```
 
 **BOOST: Day 7 Narrow vs. Broad**
-```{r differential-abundance-testing-shedding-d7-narrow_v_broad-by-boost, eval=FALSE}
+```{r differential-abundance-testing-Shedding-d7-narrow_v_broad-by-boost, eval=FALSE}
 sample_data(ps1)$day
-sample_data(ps1)$d7_roto_boost
+sample_data(ps1)$d7_rota_boost_updated
 sample_data(ps1)$randomization_arm
 ps1.d7.boost_narrow_v_broad <- ps1 %>%
   subset_samples(
     day == "7" &
-    d7_roto_boost == "boost" &
+    d7_rota_boost_updated == "boost" &
     randomization_arm != "No antibiotics"
   )
 sample_data(ps1.d7.boost_narrow_v_broad)$day
-sample_data(ps1.d7.boost_narrow_v_broad)$d7_roto_boost
+sample_data(ps1.d7.boost_narrow_v_broad)$d7_rota_boost_updated
 sample_data(ps1.d7.boost_narrow_v_broad)$randomization_arm
 
 # Differential Abundance Testing
