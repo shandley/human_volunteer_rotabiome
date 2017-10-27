@@ -42,8 +42,8 @@ library("HH")
 packageVersion("HH")
 library("mgcv")
 packageVersion("mgcv")
-library("pheatmap")
-packageVersion("pheatmap")
+library("plyr")
+packageVersion("plyr")
 
 ```
 
@@ -394,6 +394,58 @@ ggplotly(p.comm.bar)
 ```
 **Interpretation:** Similar to the prevalence plots, there is a notable alteration in the Bacteroidetes and Firmicutes in antibiotic treated samples at Day 0. This is still noticeable at Day 7, but the Firmicutes are making somewhat of a comeback. Proteobacteria invade following antibiotic treatment as well, but are largely absent, particularly in the narrow spectrum antibiotic samples after 7 days. Overall, the restoration to the pre-antibiotic bacterial microbiome appears to be more prominent following narrow spectrum treatment than in broad spectrum treatment. 
 
+```{r phyla-level-boxplots}
+
+# get abundance in %
+#phy <- transform_sample_counts(GlobalPatterns, function(x) x/sum(x))
+
+# agglomerate taxa
+glom <- tax_glom(ps1.ra, taxrank = 'Phylum')
+
+# create dataframe from phyloseq object
+dat <- psmelt(glom)
+
+# convert Phylum to a character vector from a factor because R
+dat$Phylum <- as.character(dat$Phylum)
+
+# group dataframe by Phylum, calculate median rel. abundance
+medians <- ddply(dat, ~Phylum, function(x) c(median=median(x$Abundance)))
+
+# find Phyla whose rel. abund. is less than 1%
+remainder <- medians[medians$median <= 0.01,]$Phylum
+
+# change their name to "Remainder"
+dat[dat$Phylum %in% remainder,]$Phylum <- 'Remainder'
+
+## Boxplot with stats
+my_comparisons.1 <- list( c("No antibiotics", "Narrow spectrum antibiotics"), c("No antibiotics", "Broad spectrum antibiotics"), c("Narrow spectrum antibiotics", "Broad spectrum antibiotics") )
+
+my_comparisons.2 <- list( c("-9", "0"), c("-9", "7"), c("7", "9") )
+
+p.boxplot.phylum.1 <- ggboxplot(dat, x = "randomization_arm", y = "Abundance", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylab("Abundance") +
+  ylim(0,1.5) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(comparisons = my_comparisons.1) +
+  facet_grid(day~Phylum) +
+  ggtitle("Phylum Level Boxplots: Day ~ Phylum")
+
+class(sample_data(ps1)$day)
+sample_data(ps1)$day <- factor(sample_data(ps1)$day)
+class(sample_data(ps1)$day)
+
+p.boxplot.phylum.2 <- ggboxplot(dat, x = "day", y = "Abundance", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylab("Abundance") +
+  #ylim(0,1.5) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(comparisons = my_comparisons.2) +
+  facet_grid(randomization_arm~Phylum) +
+  ggtitle("Phylum Level Boxplots: Randomization Arm ~ Phylum")
+
+```
+
 ```{r add-sample-data, include = FALSE}
 # Diversity
 diversity <- global(ps1)
@@ -510,50 +562,6 @@ ancova(diversities_shannon~BMIcalc*randomization_arm, data = ps1.rich)
 
 ```
 **Interpretation:** Alpha diversity is not dependent on age or BMI.
-
-```{r gam-alpha-diversity-treatment-rota-boost}
-## All sample - Treatment
-# Richness
-p.gam.rich.treatment <- ggplot(ps1.rich, aes(x = day, y = richness_0, color=d7_rota_boost_updated)) +
-  geom_point(alpha = 0.6, size = 3) +
-  stat_smooth(method = "gam", formula = y ~ s(x, bs = "cr", k = 3)) +
-  ggtitle("General Additive Model (GAM) - Treatment") +
-  facet_grid(~randomization_arm) +
-  ylab("Richness")
-
-# Shannon Diversity
-p.gam.sd.treatment <- ggplot(ps1.rich, aes(x = day, y = richness_0, color=d7_rota_boost_updated)) +
-  geom_point(alpha = 0.6, size = 3) +
-  stat_smooth(method = "gam", formula = y ~ s(x, bs = "cr", k = 3)) +
-  ggtitle("General Additive Model (GAM) - Treatment") +
-  facet_grid(~randomization_arm) +
-  ylab("Shannon Diversity")
-
-grid.arrange(p.gam.rich.treatment, p.gam.sd.treatment, nrow = 2)
-
-```
-
-```{r gam-alpha-diversity-treatment-shedding}
-## All sample - Treatment
-# Richness
-p.gam.rich.shedding <- ggplot(ps1.rich, aes(x = day, y = richness_0, color = Shedding)) +
-  geom_point(alpha = 0.6, size = 3) +
-  stat_smooth(method = "gam", formula = y ~ s(x, bs = "cr", k = 3)) +
-  ggtitle("General Additive Model (GAM) - Treatment") +
-  facet_grid(~randomization_arm) +
-  ylab("Richness")
-
-# Shannon Diversity
-p.gam.sd.shedding <- ggplot(ps1.rich, aes(x = day, y = richness_0, color=Shedding)) +
-  geom_point(alpha = 0.6, size = 3) +
-  stat_smooth(method = "gam", formula = y ~ s(x, bs = "cr", k = 3)) +
-  ggtitle("General Additive Model (GAM) - Treatment") +
-  facet_grid(~randomization_arm) +
-  ylab("Shannon Diversity")
-
-grid.arrange(p.gam.rich.shedding, p.gam.sd.shedding, nrow = 2)
-
-```
 
 ##Beta diversity analysis
 
