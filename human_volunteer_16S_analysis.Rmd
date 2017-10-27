@@ -1,0 +1,722 @@
+---
+title: "Human Volunteer 16S Amplicon Analysis"
+author: "Scott A. Handley"
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=10,
+                      fig.height=10,
+                      fig.path="./figures/",
+                      warning=FALSE,
+                      message=FALSE)
+```
+
+```{r initiate-environment, include=FALSE}
+library("tidyverse")
+packageVersion("tidyverse")
+library("phyloseq")
+packageVersion("phyloseq")
+library("RColorBrewer")
+packageVersion("RColorBrewer")
+library("vegan")
+packageVersion("vegan")
+library("gridExtra")
+packageVersion("gridExtra")
+library("knitr")
+packageVersion("knitr")
+library("DESeq2")
+packageVersion("DeSeq2")
+library("plotly")
+packageVersion("plotly")
+library("microbiome")
+packageVersion("microbiome")
+library("ggpubr")
+packageVersion("ggpubr")
+library("randomForest")
+packageVersion("randomForest")
+library("data.table")
+packageVersion("data.table")
+library("HH")
+packageVersion("HH")
+library("mgcv")
+packageVersion("mgcv")
+library("pheatmap")
+packageVersion("pheatmap")
+
+```
+
+```{r global-theme-settings, include=FALSE}
+# Set global theming
+theme_set(theme_bw(base_size = 10,
+                   base_family = "Helvetica"))
+
+```
+##Load phyloseq data generated from dada2
+
+```{r initiate-data}
+# Load Phyloseq object generated in HIV_oral_preprocessing.Rmd
+# Options include GreenGenes, SILVA, RDP and HitDB
+ps0 <- readRDS("~/Dropbox/Research/human_volunteer/data/ps0.Harris.rdp.RDS")
+ps0
+
+# Load mapping file
+map <- import_qiime_sample_data("~/Dropbox/Research/human_volunteer/data/mapping_human_volunteer.txt")
+ps0 <- merge_phyloseq(ps0, map)
+ps0
+
+# View sample variables & generate basic stats
+sample_variables(ps0)
+sd(sample_sums(ps0))
+get_taxa_unique(ps0, "Phylum")
+
+```
+
+```{r factor-adjustments, include=FALSE}
+# Order randomization arms 
+sample_data(ps0)$randomization_arm
+sample_data(ps0)$randomization_arm <- factor(sample_data(ps0)$randomization_arm, levels = c("No_antibiotics", "Narrow_spectrum_antibiotics", "Broad_spectrum_antibiotics"))
+sample_data(ps0)$randomization_arm
+sample_data(ps0)$randomization_arm <- factor(sample_data(ps0)$randomization_arm, labels = c("No antibiotics", "Narrow spectrum antibiotics", "Broad spectrum antibiotics"))
+sample_data(ps0)$randomization_arm
+
+```
+##ASV summary statistics
+
+```{r data-assessment}
+# Create a new data frame of the sorted row sums, a column of sorted values from 1 to the total number of individuals/counts for each RSV and a categorical variable stating these are all RSVs.
+readsumsdf = data.frame(nreads = sort(taxa_sums(ps0), TRUE), 
+                        sorted = 1:ntaxa(ps0),
+                        type = "ASVs")
+
+
+# Add a column of sample sums (total number of individuals per sample)
+readsumsdf = rbind(readsumsdf,
+                   data.frame(nreads = sort(sample_sums(ps0), TRUE),
+                              sorted = 1:nsamples(ps0),
+                              type = "Samples"))
+
+# Make a data frame with a column for the read counts of each sample for histogram production
+sample_sum_df <- data.frame(sum = sample_sums(ps0))
+
+# Make plots
+# Generates a bar plot with # of reads (y-axis) for each taxa. Sorted from most to least abundant
+# Generates a second bar plot with # of reads (y-axis) per sample. Sorted from most to least
+p.reads = ggplot(readsumsdf, aes(x = sorted, y = nreads)) +
+  geom_bar(stat = "identity") +
+  ggtitle("ASV Assessment") +
+  scale_y_log10() +
+  facet_wrap(~type, scales = "free") +
+  ylab("# of Reads")
+
+# Histogram of the number of Samples (y-axis) at various read depths
+p.reads.hist <- ggplot(sample_sum_df, aes(x = sum)) + 
+  geom_histogram(color = "black", fill = "firebrick3", binwidth = 150) +
+  ggtitle("Distribution of sample sequencing depth") + 
+  xlab("Counts") +
+  ylab("# of Samples")
+
+# Final plot, side-by-side
+grid.arrange(p.reads, p.reads.hist, ncol = 2)
+
+# Basic summary statistics
+summary(sample_sums(ps0))
+
+```
+**Interpretation:** Lots (20+) samples with zero ASV's. These will likely need to be removed in the subsequent step. Other than that the distributions look normal. Skew from high to low ASV is due to the incorporation of antibiotics treated samples which result in fewer ASV.
+
+##Bad sample identification and removal
+
+```{r sample-removal-identification}
+# Format a data table to combine sample summary data with sample variable data
+ss <- sample_sums(ps0)
+sd <- as.data.frame(sample_data(ps0)) # useful to coerce the phyloseq object into an R data frame
+ss.df <- merge(sd, data.frame("ASV" = ss), by ="row.names") # merge ss with sd by row names. Rename ss to ASVs in the new data frame
+
+# Plot the data by the treatment variable
+y = 100 # Set a threshold for the minimum number of acceptable reads. Can start as a guess
+x = "randomization_arm" # Set the x-axis variable you want to examine
+label = "Description" # This is the label you want to overlay on the points that are below threshold y. Should be something sample specific
+
+# Plot
+p.ss.boxplot<- ggplot(ss.df, aes_string(x, y = "ASV")) + # x is what you assigned it above
+  geom_boxplot(outlier.colour="NA", aes(group = randomization_arm)) +
+  scale_y_log10() +
+  geom_hline(yintercept = y, lty = 2) + # Draws a dashed line across the threshold you set above as y
+  geom_jitter(alpha = 0.6, width = 0.15, size = 2.5) +
+  #geom_text(data = subset(ss.df, RSVs <= y), aes_string(x, y="RSVs", label=label), size=2, hjust -1) +# This labels a subset that fall below threshold variable y and labels them with the label variable
+  ggtitle("Number of ASV") +
+  ylab("ASV (log10)") +
+  facet_grid(~day) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme(legend.position = "NULL") +
+  theme(axis.title.x = element_blank())
+p.ss.boxplot
+
+```
+
+```{r sample-removal}
+# Remove samples with fewer than 100 ASV
+# Save samples that fell below the selected threshold
+ps.failed <- prune_samples(sample_sums(ps0) < y, ps0)
+nsamples(ps.failed)
+
+# Create a table of failed sample information
+failed.samples <- data.frame(sample_names(ps.failed), sample_data(ps.failed)$sample_ID, sample_data(ps.failed)$tube_ID)
+write.table(failed.samples, file = "./results/failed_samples.txt", sep = "\t")
+
+# Remove samples with fewer than y ASV
+ps0
+ps0 <- prune_samples(sample_sums(ps0) >=y, ps0)
+ps0
+min(sample_sums(ps0))
+
+```
+**Interpretation:** There does not appear to be a relationship between low numbers of ASVs, treatment or time-point. So removing samples that behave unexpectedly (< 100 sequences).
+
+##Overall sample relationship to evaluate sample outliers
+
+```{r outlier-sample-evaluation}
+# Outlier evaluation
+out.bray <- ordinate(ps0, method = "NMDS", distance = "bray")
+p.NMDS.outlier <- plot_ordination(ps0, out.bray, color = "randomization_arm", axes = c(1,2)) +
+  theme_bw() +
+  facet_grid(~day) +
+  geom_point(size = 2) +
+  ggtitle("NMDS of Bray Distances \nOutlier Evaluation") +
+  stat_ellipse(type = "norm", geom = "polygon", alpha = 1/10, aes(fill = randomization_arm))
+p.NMDS.outlier
+
+```
+**Interpretation:** There is no distiguishable feature to identify samples as obvious outliers using this projection. No samples will be removed based on NMDS of Bray-curtis distances.
+
+##Prevalence assessment and taxon filtering
+
+```{r prevalence-assessment}
+# Begin by removing sequences that were not classified as Bacteria or were classified as either mitochondria or chlorplast
+
+ps0 # Check the number of taxa prior to removal
+ps1 <- ps0 %>%
+  subset_taxa(
+    Family  != "mitochondria" &
+    Class   != "Chloroplast"
+  )
+ps1 # Confirm that the taxa were removed
+
+saveRDS(ps1, file = "./results/ps1.RDS")
+
+# Intermediate data subsetting for prevelance plotting
+# Full subsetting with removal of zero count data will be performed in a subsequent chunk
+ps1.d_9 <- subset_samples(ps1, day == "-9")
+ps1.d0 <- subset_samples(ps1, day == "0")
+ps1.d7 <- subset_samples(ps1, day == "7")
+
+# Prevelance estimation
+# Calculate feature prevelance across the data set
+prevdf.d_9 <- apply(X = otu_table(ps1.d_9),MARGIN = ifelse(taxa_are_rows(ps1.d_9), yes = 1, no = 2),FUN = function(x){sum(x > 0)})
+prevdf.d0 <- apply(X = otu_table(ps1.d0),MARGIN = ifelse(taxa_are_rows(ps1.d0), yes = 1, no = 2),FUN = function(x){sum(x > 0)})
+prevdf.d7 <- apply(X = otu_table(ps1.d7),MARGIN = ifelse(taxa_are_rows(ps1.d7), yes = 1, no = 2),FUN = function(x){sum(x > 0)})
+
+# Add taxonomy and total read counts to prevdf
+prevdf.d_9 <- data.frame(Prevalence = prevdf.d_9, TotalAbundance = taxa_sums(ps1.d_9), tax_table(ps1.d_9))
+prevdf.d0 <- data.frame(Prevalence = prevdf.d0, TotalAbundance = taxa_sums(ps1.d0), tax_table(ps1.d0))
+prevdf.d7 <- data.frame(Prevalence = prevdf.d7, TotalAbundance = taxa_sums(ps1.d7), tax_table(ps1.d7))
+
+# Create a table of Phylum, their mean abundances across all samples, and the number of samples they were detected in
+plyr::ddply(prevdf.d_9, "Phylum", function(df1){cbind(mean(df1$Prevalence),sum(df1$Prevalence))})
+plyr::ddply(prevdf.d0, "Phylum", function(df1){cbind(mean(df1$Prevalence),sum(df1$Prevalence))})
+plyr::ddply(prevdf.d7, "Phylum", function(df1){cbind(mean(df1$Prevalence),sum(df1$Prevalence))})
+
+# Reorder based on visual inspection of relative dominance of each taxa for plotting
+prevdf.d_9$Phylum <- factor(prevdf.d_9$Phylum, levels = c("Firmicutes", "Bacteroidetes", "Proteobacteria", "Actinobacteria", "Verrucomicrobia", "Lentisphaerae", "Fusobacteria", "Elusimicrobia", "Spirochaetes", "Synergistetes", "Tenericutes"))
+prevdf.d0$Phylum <- factor(prevdf.d0$Phylum, levels = c("Firmicutes", "Bacteroidetes", "Proteobacteria", "Actinobacteria", "Verrucomicrobia", "Lentisphaerae", "Fusobacteria", "Elusimicrobia", "Spirochaetes", "Synergistetes", "Tenericutes"))
+prevdf.d7$Phylum <- factor(prevdf.d7$Phylum, levels = c("Firmicutes", "Bacteroidetes", "Proteobacteria", "Actinobacteria", "Verrucomicrobia", "Lentisphaerae", "Fusobacteria", "Elusimicrobia", "Spirochaetes", "Synergistetes", "Tenericutes"))
+
+#Prevalence plot - t1
+prevdf1.d_9 <- subset(prevdf.d_9, Phylum %in% get_taxa_unique(ps1.d_9, "Phylum"))
+p.prevdf1.d_9 <- ggplot(prevdf1.d_9, aes(TotalAbundance, Prevalence / nsamples(ps1.d_9),color=Family)) +
+  # geom_hline(yintercept = 0.03, alpha = 0.5, linetype = 2) +
+  geom_point(size = 1.5, alpha = 0.7) +
+  scale_x_log10(limits = c(1,10000), breaks = c(100,10000)) +
+  xlab("Total Abundance") + ylab("Prevalence [Frac. Samples]") +
+  facet_grid(~Phylum) +
+  theme(legend.position="None") +
+  theme(axis.title.x = element_blank()) +
+  ggtitle("Day -9")
+
+#Prevalence plot - t2
+prevdf1.d0 <- subset(prevdf.d0, Phylum %in% get_taxa_unique(ps1.d0, "Phylum"))
+p.prevdf1.d0 <- ggplot(prevdf1.d0, aes(TotalAbundance, Prevalence / nsamples(ps1.d0),color=Family)) +
+  # geom_hline(yintercept = 0.03, alpha = 0.5, linetype = 2) +
+  geom_point(size = 1.5, alpha = 0.7) +
+  scale_x_log10(limits = c(1,10000), breaks = c(100,10000)) +
+  xlab("Total Abundance") + ylab("Prevalence [Frac. Samples]") +
+  facet_grid(~Phylum) +
+  theme(legend.position="None") +
+  theme(axis.title.x = element_blank()) +
+  ggtitle("Day 0")
+
+#Prevalence plot - t3
+prevdf1.d7 <- subset(prevdf.d7, Phylum %in% get_taxa_unique(ps1.d7, "Phylum"))
+p.prevdf1.d7 <- ggplot(prevdf1.d7, aes(TotalAbundance, Prevalence / nsamples(ps1.d7),color=Family)) +
+  # geom_hline(yintercept = 0.03, alpha = 0.5, linetype = 2) +
+  geom_point(size = 1.5, alpha = 0.7) +
+  scale_x_log10(limits = c(1,10000), breaks = c(100,10000)) +
+  xlab("Total Abundance") + ylab("Prevalence [Frac. Samples]") +
+  facet_grid(~Phylum) +
+  theme(legend.position="None") +
+  theme(axis.title.x = element_blank()) +
+  ggtitle("Day 7")
+
+grid.arrange(p.prevdf1.d_9, p.prevdf1.d0, p.prevdf1.d7, nrow = 3)
+
+```
+**Interpretation:** There are a number of low prevalent bacteria. There is a notable reduction in both Firmicutes and Bacteroidetes following antibiotic treatment. This is not subset by treatment (randomization_arm), but the overall reduction suggests the antibiotics reduced the prevalence of many taxa following treatment. There is a visible restoration by day 7.
+
+```{r data-transform, include=FALSE}
+# Transform to Realative abundances
+ps1.ra <- transform_sample_counts(ps1, function(OTU) OTU/sum(OTU))
+
+# Transform to Proportional Abundance
+ps1.prop <- transform_sample_counts(ps1, function(x) min(sample_sums(ps1)) * x/sum(x))
+
+# Log transformation moves to a more normal distribution
+ps1.log <- transform_sample_counts(ps1, function(x) log(1 + x))
+
+# View how each function altered count data
+par(mfrow=c(1,4))
+plot(sort(sample_sums(ps1), TRUE), type = "o", main = "Native", ylab = "ASVs", xlab = "Samples")
+plot(sort(sample_sums(ps1.log), TRUE), type = "o", main = "log Transfromed", ylab = "ASVs", xlab = "Samples")
+plot(sort(sample_sums(ps1.ra), TRUE), type = "o", main = "Relative Abundance", ylab = "ASVs", xlab = "Samples")
+plot(sort(sample_sums(ps1.prop), TRUE), type = "o", main = "Proportional Abundance", ylab = "ASVs", xlab = "Samples")
+par(mfrow=c(1,1))
+
+# Histograms of the non-transformed data vs. the transformed data can address the shift to normality
+p.nolog <- qplot(rowSums(otu_table(ps1))) + ggtitle("Raw Counts") +
+  theme_bw() +
+  xlab("Row Sum") +
+  ylab("# of Samples")
+
+p.log <- qplot(log10(rowSums(otu_table(ps1)))) +
+  ggtitle("log10 transformed counts") +
+  theme_bw() +
+  xlab("Row Sum") +
+  ylab("# of Samples")
+
+grid.arrange(p.nolog, p.log, ncol = 2)
+
+```
+**Interpretation:** Log10 transformation does tend to shift the data to normality, but it is not striking and may 'overshift' the data. Should consider using log10 transformed data for future analysis, but consider other transformations as needed.
+
+```{r subsetting, include = FALSE}
+# Subset. Always subset after taxa/sample filtering
+# Time 1 (Day -9)
+ps1.t1 <- subset_samples(ps1, day == "-9")
+ps1.t1
+ps1.t1 <- prune_samples(sample_sums(ps1.t1) > 0, ps1.t1)
+ps1.t1
+ps1.t1.log <- transform_sample_counts(ps1.t1, function(x) log(1 + x))
+
+# Time 2 (Day 0)
+ps1.t2 <- subset_samples(ps1, day == "0")
+ps1.t2
+ps1.t2 <- prune_samples(sample_sums(ps1.t2) > 0, ps1.t2)
+ps1.t2
+ps1.t2.log <- transform_sample_counts(ps1.t2, function(x) log(1 + x))
+
+# Time 3 (Day 7)
+ps1.t3 <- subset_samples(ps1, day == "7")
+ps1.t3
+ps1.t3 <- prune_samples(sample_sums(ps1.t3) > 0, ps1.t3)
+ps1.t3
+ps1.t3.log <- transform_sample_counts(ps1.t3, function(x) log(1 + x))
+
+# No antibiotics (control)
+ps1.con <- subset_samples(ps1, randomization_arm == "No antibiotics")
+ps1.con
+ps1.con <- prune_samples(sample_sums(ps1.con) > 0, ps1.con)
+ps1.con
+ps1.con.log <- transform_sample_counts(ps1.con, function(x) log(1 + x))
+
+# Narrow spectrum antibiotics
+ps1.narrow <- subset_samples(ps1, randomization_arm == "Narrow spectrum antibiotics")
+ps1.narrow
+ps1.narrow <- prune_samples(sample_sums(ps1.narrow) > 0, ps1.narrow)
+ps1.narrow
+ps1.narrow.log <- transform_sample_counts(ps1.narrow, function(x) log(1 + x))
+
+# Broad spectrum antibiotics
+ps1.broad <- subset_samples(ps1, randomization_arm == "Broad spectrum antibiotics")
+ps1.broad
+ps1.broad <- prune_samples(sample_sums(ps1.broad) > 0, ps1.broad)
+ps1.broad
+ps1.broad.log <- transform_sample_counts(ps1.broad, function(x) log(1 + x))
+
+```
+##Community composition plotting
+
+```{r community-composition-plots}
+# Community composition - Baseline and Week 24 timepoints combined
+# Phyla level plots
+# Melt to long format (for ggploting) 
+# Prune out phyla below % in each sample
+
+# Creat a Phyla level table for external analysis
+# write.table(ps1_phylum, file = "./results/phylum.txt", sep="\t")
+
+threshold = 0.03
+
+ps1_phylum <- ps1 %>%
+  tax_glom(taxrank = "Phylum") %>%                     # agglomerate at phylum level
+  transform_sample_counts(function(x) {x/sum(x)} ) %>% # Transform to rel. abundance
+  psmelt() %>%                                         # Melt to long format
+  filter(Abundance > threshold) %>%                    # Filter out low abundance taxa
+  arrange(Phylum)                                      # Sort data frame alphabetically by phylum
+
+# Convert Sample No to a factor because R is weird sometime
+ps1_phylum$patient_ID <- as.factor(ps1_phylum$patient_ID)
+
+p.comm.bar <- ggplot(ps1_phylum, aes(x = patient_ID, y = Abundance, fill = Phylum)) + 
+  geom_bar(stat = "identity", width = 0.9) +
+  facet_wrap(randomization_arm~day, scales = "free_x") +
+  ggtitle("Community Composition Over Time and Randomization Arm") +
+  ylab("Relative Abundance") +
+  theme(legend.position = "bottom") +
+  theme(axis.text.x = element_blank()) +
+  theme(axis.title.x = element_blank()) +
+  scale_fill_brewer(palette = "Dark2")
+p.comm.bar
+
+# Draw interactive plot
+ggplotly(p.comm.bar)
+
+```
+**Interpretation:** Similar to the prevalence plots, there is a notable alteration in the Bacteroidetes and Firmicutes in antibiotic treated samples at Day 0. This is still noticeable at Day 7, but the Firmicutes are making somewhat of a comeback. Proteobacteria invade following antibiotic treatment as well, but are largely absent, particularly in the narrow spectrum antibiotic samples after 7 days. Overall, the restoration to the pre-antibiotic bacterial microbiome appears to be more prominent following narrow spectrum treatment than in broad spectrum treatment. 
+
+```{r add-sample-data, include = FALSE}
+# Diversity
+diversity <- global(ps1)
+head(diversity)
+
+sd.1 <- as.data.frame(sample_data(ps1)) # useful to coerce the phyloseq object into an R data frame
+ps1.rich <- merge(sd.1, diversity, by ="row.names") # merge sd.1 by row names
+
+# Add divergence measurements
+ps1.rich$divergence <- divergence(ps1)
+
+```
+##Alpha diversity - categorical analysis
+
+```{r paired-richness}
+my.comparisons.paired <- list(c("Pre", "0"), c("Pre", "7"), c("0","7"))
+
+p.paired.rich <- ggpaired(ps1.rich, x = "day", y = "richness_0", outlier.shape = NA, id = "patient_ID") +
+  geom_jitter(width = 0.2) +
+  ylab("Richness") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  facet_grid(~randomization_arm) +
+  stat_compare_means(label = "p.signif", method = "t.test", ref.group = "-9", hide.ns = TRUE) +
+  theme(axis.text.x = element_blank())
+
+p.paired.sd <- ggpaired(ps1.rich, x = "day", y = "diversities_shannon", outlier.shape = NA, id = "patient_ID") +
+  geom_jitter(width = 0.2) +
+  ylab("Shannon Diversity") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  facet_grid(~randomization_arm) +
+  stat_compare_means(label = "p.signif", method = "t.test", ref.group = "-9", hide.ns = TRUE)
+
+grid.arrange(p.paired.rich, p.paired.sd, nrow = 2)
+
+```
+
+**Interpretation:** Richness (the number of taxa) and Shannon diversity (relative abundance and evenness) are similar in all untreated sampels over time. Both narrow and broad spectrum antibiotic treatment decrease alpha diversity over time, with some recovery occurring in both treatement protocols between Day 0 and 7.
+
+##Alpha diversity and day 7 rotavirus IgA boost
+
+IgA boost defined as a greater than or equal to 2 fold change between pre-rotavirus IgA levels and Day 7 IgA levels.
+
+```{r alpha-diversity-day7-roto-boost-alpha-diversity, fig.height=8}
+p.rich.rota_boost <- ggboxplot(ps1.rich, x = "d7_rota_boost_updated", y = "richness_0", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylim(0,250) +
+  ylab("Richness") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(label = "p.signif", method = "t.test") +
+  facet_grid(randomization_arm~day) +
+  ggtitle("Rota-IgA Boost") +
+  theme(axis.text.x = element_blank())
+
+p.sd.rota_boost <- ggboxplot(ps1.rich, x = "d7_rota_boost_updated", y = "diversities_shannon", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylim(0,5) +
+  ylab("Shannon diversity") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(label = "p.signif", method = "t.test") +
+  facet_grid(randomization_arm~day)
+
+grid.arrange(p.rich.rota_boost, p.sd.rota_boost, nrow = 2)
+
+```
+**Interpretation:** There are signficiantly more types of bacteria (richness) at day 7 in both narrow spectrum and broad spectrum antibiotic patients. There is increased bacterial diversity in day -9 pre-treatment samples in the patients that go on to not receive antibiotics, but the levels are normalized over the course of the study.
+
+##Alpha diversity and shedding
+
+Shedding was defined as having one or more stool samples per patient positive for rotavirus shedding.
+
+```{r alpha-diversity-shedding-alpha-diversity, fig.height=8}
+p.rich.shedding <- ggboxplot(ps1.rich, x = "Shedding", y = "richness_0", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylim(0,250) +
+  ylab("Richness") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(label = "p.signif", method = "t.test") +
+  facet_grid(randomization_arm~day) +
+  ggtitle("Shedding") +
+  theme(axis.text.x = element_blank())
+
+p.sd.shedding <- ggboxplot(ps1.rich, x = "Shedding", y = "diversities_shannon", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  ylim(0,5) +
+  ylab("Shannon diversity") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(label = "p.signif", method = "t.test") +
+  facet_grid(randomization_arm~day)
+
+grid.arrange(p.rich.shedding, p.sd.shedding, nrow = 2)
+
+```
+**Interpretation:** Both richenss and diversity were increased in day 0 samples of patients treated with narrow spectrum antibiotics.
+
+##ANCOVA analysis
+
+```{r ANCOVA-BMI, include=TRUE, eval=TRUE}
+# Test for age dependency on alpha diversity
+# Age per randomization_arm
+ancova(richness_0~Age*randomization_arm, data = ps1.rich)
+ancova(diversities_shannon~Age*randomization_arm, data = ps1.rich)
+
+# BMI
+ancova(richness_0~BMIcalc*randomization_arm, data = ps1.rich)
+ancova(diversities_shannon~BMIcalc*randomization_arm, data = ps1.rich)
+
+## Alpha diversity is dependent on randomization arm, but not BMI
+
+```
+**Interpretation:** Alpha diversity is not dependent on age or BMI.
+
+```{r gam-alpha-diversity-treatment-rota-boost}
+## All sample - Treatment
+# Richness
+p.gam.rich.treatment <- ggplot(ps1.rich, aes(x = day, y = richness_0, color=d7_rota_boost_updated)) +
+  geom_point(alpha = 0.6, size = 3) +
+  stat_smooth(method = "gam", formula = y ~ s(x, bs = "cr", k = 3)) +
+  ggtitle("General Additive Model (GAM) - Treatment") +
+  facet_grid(~randomization_arm) +
+  ylab("Richness")
+
+# Shannon Diversity
+p.gam.sd.treatment <- ggplot(ps1.rich, aes(x = day, y = richness_0, color=d7_rota_boost_updated)) +
+  geom_point(alpha = 0.6, size = 3) +
+  stat_smooth(method = "gam", formula = y ~ s(x, bs = "cr", k = 3)) +
+  ggtitle("General Additive Model (GAM) - Treatment") +
+  facet_grid(~randomization_arm) +
+  ylab("Shannon Diversity")
+
+grid.arrange(p.gam.rich.treatment, p.gam.sd.treatment, nrow = 2)
+
+```
+
+```{r gam-alpha-diversity-treatment-shedding}
+## All sample - Treatment
+# Richness
+p.gam.rich.shedding <- ggplot(ps1.rich, aes(x = day, y = richness_0, color = Shedding)) +
+  geom_point(alpha = 0.6, size = 3) +
+  stat_smooth(method = "gam", formula = y ~ s(x, bs = "cr", k = 3)) +
+  ggtitle("General Additive Model (GAM) - Treatment") +
+  facet_grid(~randomization_arm) +
+  ylab("Richness")
+
+# Shannon Diversity
+p.gam.sd.shedding <- ggplot(ps1.rich, aes(x = day, y = richness_0, color=Shedding)) +
+  geom_point(alpha = 0.6, size = 3) +
+  stat_smooth(method = "gam", formula = y ~ s(x, bs = "cr", k = 3)) +
+  ggtitle("General Additive Model (GAM) - Treatment") +
+  facet_grid(~randomization_arm) +
+  ylab("Shannon Diversity")
+
+grid.arrange(p.gam.rich.shedding, p.gam.sd.shedding, nrow = 2)
+
+```
+
+##Beta diversity analysis
+
+```{r beta-diversity-arm, fig.height=8, fig.width=8}
+# Ordination
+
+# weighted unifrac
+ord.ps1.wuni <- ordinate(ps1, method = "PCoA", distance = "wunifrac")
+ord.ps1.wuni.log <- ordinate(ps1.log, method = "PCoA", distance = "wunifrac")
+
+# unifrac
+ord.ps1.uni <- ordinate(ps1, method = "PCoA", distance = "unifrac")
+
+# Bray-curtis
+ord.ps1.bray <- ordinate(ps1, method = "PCoA", distance = "bray")
+
+# PCoA plot
+p.ord.wuni <- plot_ordination(ps1, ord.ps1.wuni, color = "randomization_arm") +
+  geom_point(size=3, alpha = 0.7) +
+  scale_color_brewer(palette = "Dark2") +
+  geom_point(colour = "grey50", size = 1.5) +
+  facet_grid(~ day) +
+  stat_ellipse(geom = "polygon", alpha = 1/15, aes(fill = randomization_arm)) +
+  labs(color = "randomization_arm") +
+  ggtitle("wUniFrac")
+
+p.ord.wuni.log <- plot_ordination(ps1.log, ord.ps1.wuni.log, color = "randomization_arm") +
+  geom_point(size=3, alpha = 0.7) +
+  scale_color_brewer(palette = "Dark2") +
+  geom_point(colour = "grey50", size = 1.5) +
+  facet_grid(~ day) +
+  stat_ellipse(geom = "polygon", alpha = 1/15, aes(fill = randomization_arm)) +
+  labs(color = "randomization_arm") +
+  ggtitle("wUniFrac: log transformed")
+
+p.ord.uni <- plot_ordination(ps1, ord.ps1.uni, color = "randomization_arm") +
+  geom_point(size=3, alpha = 0.7) +
+  scale_color_brewer(palette = "Dark2") +
+  geom_point(colour = "grey50", size = 1.5) +
+  facet_grid(~ day) +
+  stat_ellipse(geom = "polygon", alpha = 1/15, aes(fill = randomization_arm)) +
+  labs(color = "randomization_arm") +
+  ggtitle("UniFrac")
+
+p.ord.bray <- plot_ordination(ps1, ord.ps1.bray, color = "randomization_arm") +
+  geom_point(size=3, alpha = 0.7) +
+  scale_color_brewer(palette = "Dark2") +
+  geom_point(colour = "grey50", size = 1.5) +
+  facet_grid(~ day) +
+  stat_ellipse(geom = "polygon", alpha = 1/15, aes(fill = randomization_arm)) +
+  labs(color = "randomization_arm") +
+  ggtitle("Bray-Curtis")
+
+grid.arrange(p.ord.wuni, p.ord.wuni.log, p.ord.uni, p.ord.bray, nrow = 4)
+
+```
+
+**Interpretation:** Selecting wUniFrac as it 1) tends to agree with alpha diversity observations and 2) explains a high-percentage of variance on axis 1. However, there are likely details to be resolved from each measure.
+
+Community composition differences beetween groups is primarily explained by treatment (randomization arm). As with alpha diversity, the extent of difference between groups is greatest at day 0 and diminished by day 7. However, the differences between each sample at day 7 are larger than at day 7 (more variant across Axis 1 and 2) suggesting intra-individual spread in bacterial communities.
+
+## Examine beta diversity grouping based on rotavirus boosting or rotavirus shedding in the stool.
+
+```{r beta-diversity-d7-rota-boost, fig.height=8, fig.width=8}
+p.ord.boost <- plot_ordination(ps1, ord.ps1.bray, color = "d7_rota_boost_updated") +
+  geom_point(size=3, alpha = 0.7) +
+  scale_color_brewer(palette = "Dark2") +
+  geom_point(colour = "grey50", size = 1.5) +
+  facet_grid(randomization_arm ~ day) +
+  stat_ellipse(geom = "polygon", alpha = 1/15, aes(fill = d7_rota_boost_updated)) +
+  ggtitle("wUniFrac Rotavirus IgA Boost")
+
+p.ord.shedding <- plot_ordination(ps1, ord.ps1.bray, color = "Shedding") +
+  geom_point(size=3, alpha = 0.7) +
+  scale_color_brewer(palette = "Dark2") +
+  geom_point(colour = "grey50", size = 1.5) +
+  facet_grid(randomization_arm ~ day) +
+  stat_ellipse(geom = "polygon", alpha = 1/15, aes(fill = Shedding)) +
+  ggtitle("wUniFrac Rotavirus Shedding")
+
+grid.arrange(p.ord.boost, p.ord.shedding, nrow = 2)
+
+```
+**Interpretation:** Visual inspection makes it appear that bacterial community structure is different between samples from patients that boosted and those that did not boost at Day 7. There is poor sample distribution of boosters and shedders to analyze no antibiotic controls and too few boosted samples to analyze broad spectrum samples.  
+
+##Premanova significance testing (ADONIS)
+
+```{r ADONIS}
+# Set a random seed so that exact results can be reproduced
+set.seed(1000)
+
+# Function to run adonis test on a physeq object and a variable from metadata
+doadonis <- function(physeq, category) {
+  bdist <- phyloseq::distance(physeq, "wunifrac")
+  col <- as(sample_data(physeq), "data.frame")[ ,category]
+  
+  # Adonis test
+  adonis.bdist <- adonis(bdist ~ col)
+  print("Adonis results:")
+  print(adonis.bdist)
+  
+  # Homogeneity of dispersion test
+  betatax = betadisper(bdist,col)
+  p = permutest(betatax)
+  print("Betadisper results:")
+  print(p$tab)
+}
+
+# Two factor adonis
+doadonis2 <- function(physeq, category, category2) {
+  bdist <- phyloseq::distance(physeq, "wunifrac")
+  col <- as(sample_data(physeq), "data.frame")[ ,category]
+  col2 <- as(sample_data(physeq), "data.frame")[ ,category2]
+  
+  # Adonis test
+  adonis.bdist <- adonis(bdist ~ col * col2)
+  print("Adonis results:")
+  print(adonis.bdist)
+
+}
+
+# Runs Permanov and Homogeneity of dispersion test
+# See ?betadisper for more info
+
+# Randomization arm at each time point
+doadonis2(ps1, "day", "randomization_arm") # day = **, randomization_arm = ***, interaction = n.s.
+doadonis(ps1.t1, "randomization_arm") # n.s.
+doadonis(ps1.t2, "randomization_arm") # ***
+doadonis(ps1.t3, "randomization_arm") # **
+
+# Randomization arm over time
+doadonis(ps1.con, "day") # n.s.
+doadonis(ps1.narrow, "day") # n.s. (p < 0.1) # likley not-significant due to Day -9 and Day 7 similarity
+doadonis(ps1.broad, "day") # ***
+
+# Interactions between day and rotavirus boost in separate treatment groups
+doadonis2(ps1.narrow, "day", "d7_rota_boost_updated") # n.s.
+
+# Rotavirus sheeding in each radnomization arm over time
+doadonis2(ps1.narrow, "day", "Shedding") # n.s.
+doadonis2(ps1.broad, "day", "Shedding") # *** for day, n.s. for shedding (samples are different over time, but not based on rotavirus shedding)
+
+# Interaction between treatment and rotavirus vaccine boost at each time point
+doadonis2(ps1.t1, "randomization_arm", "d7_rota_boost_updated") # n.s.
+doadonis2(ps1.t2, "randomization_arm", "d7_rota_boost_updated") # n.s. (samples are differnet by randomization arm only)
+doadonis2(ps1.t3, "randomization_arm", "d7_rota_boost_updated") # sasmples are differnt by randomization arm (**) and by rotavirus boost status, but there is no interaction
+
+# Double check day 7 for narrow as it looks separated in the plot
+ps1.t3.narrow <- subset_samples(ps1.t3, randomization_arm == "Narrow spectrum antibiotics")
+sample_data(ps1.t3.narrow)$randomization_arm
+sample_data(ps1.t3.narrow)$day
+
+doadonis(ps1.t3.narrow, "d7_rota_boost_updated") # 0.08. < 0.1 is near significance
+
+```
+**Interpretation:**
+
+- Treatment groups are the same at day -9, but signficantly different at days 0 (p = 0.001) and 7 (p = 0.02)
+
+- Control and narrow spectrum antibiotic groups do not change signficantly over time (p = 0.356 and 0.486). Broad spectum antibiotics do change over time (p = 0.002). The reason narrow spectrum antibiotics is not significant here is because day -9 and day 7 are almost identical. The low variant day 0 data are likely being washed out.
+
+- Independent of randomization arm, bacterial communities were the same regardless of rotavirus boost at days -9 (p = 0.637), 0 (p = 0.597). They were different at day 7 between samples from patients that boosted and those that did not (p = 0.004)
+
+- There is no signficiant difference in bacterial community structure when comparing patients who boosted to those that did not boost over time in any randomziation arm (No antibiotics p-value: 0.681; Narrow spectum antibiotics pivalue: 0.404, Broad spectrum antibiotics: p-value: 0.615)
+
+- There is no signficiant difference in bacterial community structure when comparing patients who shed rotavirus to those that did not shed rotavirus over time in any randomziation arm (No antibiotics p-value: 0.996; Narrow spectum antibiotics pivalue: 0.684, Broad spectrum antibiotics: p-value: 0.780)
