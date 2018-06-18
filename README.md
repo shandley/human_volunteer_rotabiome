@@ -1,4 +1,4 @@
-# Human volunteer rotabiome study
+# Human Volunteer Rotabiome Study
 
 63 healthy volunteers were enrolled to test how antibiotic pre-treatment altered vaccine efficacy.
 
