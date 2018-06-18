@@ -4,6 +4,8 @@ author: "Barry Hykes Jr. and Scott A. Handley"
 date: '`r format(Sys.Date(), "%B %d, %Y")`'
 output: html_document
 ---
+**RMarkdwon Description:** Additional analysis carried out as part of the published study, but excluded from inclusion in the results or materials and methods.
+
 **Project Description:** Analysis of 16S rRNA amplicon data from a cohort of human volunteers (heatlhy men aged 18-35) randomized into three treatment groups: 1) control (no antibiotics), 2) narrow spectrum (oral vancomycin) or 3) broad-spectrum (oral vancomycin, ciprofloxacin, and metronidazole) antibiotics. Antibiotics were taken for 7-dats prior to vaccination with Rotarix (RVV), polysaccharide-pneumococcal (Pneumo 23) and tetanus-toxoid vaccine. The primary endpoint was difference in 28 days-post-vaccination anti-RV IgA. Secondary endpoints were proportion of volunteers with day 7 anti-RV IgA boosting (>=2 fold-increase), absolute and proportion of RV-antigen shedding, anti-RV, pneumococcal and anti-tetanus IgG.
 
 **Primary Collaborator:**
@@ -313,5 +315,105 @@ p.prevdf1.d7 <- ggplot(prevdf1.d7, aes(TotalAbundance, Prevalence / nsamples(ps1
   ggtitle("Day 7")
 
 grid.arrange(p.prevdf1.d_9, p.prevdf1.d0, p.prevdf1.d7, nrow = 3)
+
+```
+
+```{r LRT-diff-abund-testing-data-prep, include=FALSE}
+# Time series should be set as a factor per DeSeq2 recommendations
+class(sample_data(ps1.con)$day)
+sample_data(ps1.con)$day <- factor(sample_data(ps1.con)$day)
+class(sample_data(ps1.con)$day)
+
+class(sample_data(ps1.narrow)$day)
+sample_data(ps1.narrow)$day <- factor(sample_data(ps1.narrow)$day)
+class(sample_data(ps1.narrow)$day)
+
+class(sample_data(ps1.broad)$day)
+sample_data(ps1.broad)$day <- factor(sample_data(ps1.broad)$day)
+class(sample_data(ps1.broad)$day)
+
+# Calculate geometric means prior to estimate size factors
+# This is required for data sets with lots of zeros
+gm_mean = function(x, na.rm=TRUE){
+  exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
+}
+
+```
+#**Likelihood ratio test:** Identifying taxa differentially abundant in one or more time points between 1) patients who boosted versus thoses that did not and 2) patients that shed rotavirus in their stool and those that did not
+
+##1) Rotavirus Boost: Narrow Spectrum Antibiotics
+
+```{r diff-abund-rotaboost-narrow-LRT}
+# Test for taxa which at one or more time points after time 0 showed a d7-rota-boost-specific effect
+# Convert phyloseq object to DeSeq2 table
+ds.boost.narrow.LRT <- phyloseq_to_deseq2(ps1.narrow, ~d7_rota_boost_updated + day + d7_rota_boost_updated:day)
+
+# Calculate geometric means prior to estimate size factors
+geoMeans.ds.boost.narrow.LRT <- apply(counts(ds.boost.narrow.LRT), 1, gm_mean)
+ds.boost.narrow.LRT <- estimateSizeFactors(ds.boost.narrow.LRT, geoMeans = geoMeans.ds.boost.narrow.LRT)
+
+# Run DeSeq2
+dds.boost.narrow.LRT <- DESeq(ds.boost.narrow.LRT, test="LRT", reduced = ~d7_rota_boost_updated + day)
+
+# Tabulate results
+res.dds.boost.narrow.LRT = results(dds.boost.narrow.LRT)
+res.dds.boost.narrow.LRT$symbol <- mcols(dds.boost.narrow.LRT)$symbol
+head(res.dds.boost.narrow.LRT[order(res.dds.boost.narrow.LRT$padj), ], 4)
+write.table(res.dds.boost.narrow.LRT, file = "./results/deseq_rotaboost_narrow_LRT.txt", sep = "\t")
+mcols(res.dds.boost.narrow.LRT)
+summary(res.dds.boost.narrow.LRT)
+
+# Plot taxa with lowest p-value
+fiss.dds.boost.narrow.LRT <- plotCounts(dds.boost.narrow.LRT, which.min(res.dds.boost.narrow.LRT$padj), 
+                   intgroup = c("day","d7_rota_boost_updated"), returnData = TRUE)
+ggplot(fiss.dds.boost.narrow.LRT,
+  aes(x = as.numeric(day), y = count, color = d7_rota_boost_updated, group = d7_rota_boost_updated)) + 
+  geom_point() + geom_smooth(se = FALSE, method = "loess") + scale_y_log10()
+
+```
+##2) Shedding: Narrow Spectrum Antibiotics Only
+
+```{r diff-abund-Shedding-narrow-LRT}
+# Test for taxa which at one or more time points after time 0 showed a Shedding-specific effect
+# Convert phyloseq object to DeSeq2 table
+ds.Shedding.narrow.LRT <- phyloseq_to_deseq2(ps1.narrow, ~Shedding + day + Shedding:day)
+
+# Calculate geometric means prior to estimate size factors
+geoMeans.ds.Shedding.narrow.LRT <- apply(counts(ds.Shedding.narrow.LRT), 1, gm_mean)
+ds.Shedding.narrow.LRT <- estimateSizeFactors(ds.Shedding.narrow.LRT, geoMeans = geoMeans.ds.Shedding.narrow.LRT)
+
+# Run DeSeq2
+dds.Shedding.narrow.LRT <- DESeq(ds.Shedding.narrow.LRT, test="LRT", reduced = ~Shedding + day)
+
+# Tabulate results
+res.dds.Shedding.narrow.LRT = results(dds.Shedding.narrow.LRT)
+res.dds.Shedding.narrow.LRT$symbol <- mcols(dds.Shedding.narrow.LRT)$symbol
+head(res.dds.Shedding.narrow.LRT[order(res.dds.Shedding.narrow.LRT$padj), ], 4)
+write.table(res.dds.Shedding.narrow.LRT, file = "./results/deseq_Shedding_narrow_LRT.txt", sep = "\t")
+mcols(res.dds.Shedding.narrow.LRT)
+summary(res.dds.Shedding.narrow.LRT)
+
+# Plot taxa with lowest p-value
+fiss.dds.Shedding.narrow.LRT <- plotCounts(dds.Shedding.narrow.LRT, which.min(res.dds.Shedding.narrow.LRT$padj), 
+                   intgroup = c("day","d7_rota_boost_updated"), returnData = TRUE)
+ggplot(fiss.dds.Shedding.narrow.LRT,
+  aes(x = as.numeric(day), y = count, color = d7_rota_boost_updated, group = d7_rota_boost_updated)) + 
+  geom_point() + geom_smooth(se = FALSE, method = "loess") + scale_y_log10()
+
+```
+
+```{r compare-assignments}
+library(daff)
+diff.rdp_gg <- diff_data(df.all.rdp, df.all.gg)
+write_diff(diff.rdp_gg, file = "./results/diff_rdp_gg.csv")
+render_diff(diff.rdp_gg)
+
+diff.rdp_silva <- diff_data(df.all.rdp, df.all.silva)
+write_diff(diff.rdp_silva, file = "./results/diff.rdp_silva.csv")
+render_diff(diff.rdp_silva)
+
+diff.gg_silva <- diff_data(df.all.gg, df.all.silva)
+write_diff(diff.gg_silva, file = "./results/diff.gg_silva.csv")
+render_diff(diff.gg_silva)
 
 ```

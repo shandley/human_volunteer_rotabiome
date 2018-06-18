@@ -28,6 +28,7 @@ The following Phyloseq objects are available. Each is distinguished based on the
 6) Differential abundance testing
 
 ```{r initiate-environment}
+# Set default knitr option
 knitr::opts_chunk$set(fig.width=8,
                       fig.height=6,
                       fig.path="./figures/",
@@ -49,8 +50,6 @@ library("ggpubr"); packageVersion("ggpubr")
 library("data.table"); packageVersion("data.table")
 library("pairwiseAdonis"); packageVersion("pairwiseAdonis")
 library("DESeq2"); packageVersion("DESeq2")
-library("cowplot"); packageVersion("cowplot")
-library("reshape"); packageVersion("reshape")
 
 # ggplot2 settings
 # Set global theming
@@ -64,7 +63,7 @@ set.seed(1000)
 
 ```{r initiate-data}
 # Load Phyloseq Object
-# Selected RDP due to it's up-to-date nature and conservative taxonomy. Other files are also valid for anlysis but are not explored here
+# Selected RDP due to it's up-to-date nature and conservative taxonomy. Other files are also valid for anlysis but are not explored here but are available in the ./data/ directory
 ps0 <- readRDS("~/Dropbox/Research/human_volunteer/data/ps0.human_volunteer.rdp.RDS")
 ps0
 
@@ -83,167 +82,12 @@ ntaxa(ps0)
 ##Factor reordering and renaming
 
 ```{r factor-adjustments}
-# Order randomization arms 
+# Order and update randomization arms factor
 sample_data(ps0)$randomization_arm
 sample_data(ps0)$randomization_arm <- factor(sample_data(ps0)$randomization_arm, levels = c("No_antibiotics", "Narrow_spectrum_antibiotics", "Broad_spectrum_antibiotics"))
 sample_data(ps0)$randomization_arm
 sample_data(ps0)$randomization_arm <- factor(sample_data(ps0)$randomization_arm, labels = c("No antibiotics", "Narrow spectrum antibiotics", "Broad spectrum antibiotics"))
 sample_data(ps0)$randomization_arm
-
-```
-##Metadata analysis
-
-```{r metadata-analysis}
-# Smaple data overview
-sample_variables(ps0)
-
-# Prepare a simple data frame of sample data
-sd <- ps0 %>%
-  sample_data() %>%
-  as.data.frame() %>%
-  as.tibble()
-
-# Age by randomization arm
-meta.p.age <- ggplot(sd, aes(x = Age)) +
-  geom_histogram(binwidth = 5) +
-  facet_grid(~randomization_arm) +
-  labs(title = "Age by Randomization Arm", y = "Count", x = "Age (years)")
-plot_grid(meta.p.age, labels = "A")
-
-# Height and Weight by randomization arm
-meta.p.height <- ggplot(sd, aes(x = Length)) +
-  geom_histogram(binwidth = 5) +
-  labs(y = "Count", x = "Height (cm)", caption = "Dashed line = Median Value") +
-  facet_wrap(~randomization_arm, ncol = 1) +
-  geom_vline(aes(xintercept=median(Length)), lty = 2, lwd = 0.2)
-
-meta.p.weight <- ggplot(sd, aes(x = Weight)) +
-  geom_histogram(binwidth = 5) +
-  labs(y = "Count", x = "Weight (kg)", caption = "Dashed line = Median Value") +
-  facet_wrap(~randomization_arm, ncol = 1) +
-  geom_vline(aes(xintercept=median(Weight)), lty = 2, lwd = 0.2)
-plot_grid(meta.p.height, meta.p.weight, labels = c("A", "B"), ncol = 2)
-
-# Rotavirus Ag shedding by randomization arm
-sd.1 <- sd %>%
-  gather(RV_Ag_shedding_d0, RV_Ag_shedding_d1, RV_Ag_shedding_d2, RV_Ag_shedding_d3, RV_Ag_shedding_d4, RV_Ag_shedding_d5, RV_Ag_shedding_d6, key = "RV_Ag_shedding_day", value = "Shed_RV_Ag")
-levels(as.factor(sd.1$RV_Ag_shedding_day))
-
-meta.p.rv_ag.shedding <- ggplot(sd.1, aes(x = RV_Ag_shedding_day, y = log10(Shed_RV_Ag), color = randomization_arm)) +
-  geom_point(size = 3) +
-  stat_summary(aes(group = randomization_arm, color = randomization_arm), fun.y=median, geom="line", lwd = 0.5, lty = 2) +
-  labs(color = "Randomization Arm", y = "Shed RV Antigen (log10)") +
-  labs(x = "") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-plot_grid(meta.p.rv_ag.shedding, labels = "A")
-
-# Rotavirus serum IgA
-sd.2 <- sd %>%
-  gather(d7_RV_IgA, d14_RV_IgA, d28_RV_IgA, key = "RV_IgA_serum_day", value = "RV_IgA")
-levels(as.factor(sd.2$RV_IgA_serum_day))
-sd.2$RV_IgA_serum_day <- factor(sd.2$RV_IgA_serum_day, levels = c("d7_RV_IgA", "d14_RV_IgA", "d28_RV_IgA"))
-levels(as.factor(sd.2$RV_IgA_serum_day))
-
-meta.p.rv_serum_IgA <- ggplot(sd.2, aes(x = RV_IgA_serum_day, y = log10(RV_IgA), color = randomization_arm, size = log10(pre_RV_IgA))) +
-  geom_point() +
-  stat_summary(aes(group = randomization_arm, color = randomization_arm), fun.y=median, geom="line", lwd = 0.5, lty = 2) +
-  labs(color = "Randomization Arm", y = "Rotavirus IgA (log10)") +
-  labs(x = "") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-plot_grid(meta.p.rv_serum_IgA, labels = "A")
-
-ggplot(sd.2, aes(x = RV_IgA_serum_day, y = RV_IgA)) +
-  geom_point()
-
-# Pneumococcus IgG
-sd.3 <- sd %>%
-  gather(pneumo_IgG_pre, pneumo_IgG_7, pneumo_IgG_14, pneumo_IgG_28, key = "Pneumo_IgG_day", value = "Pneumo_IgG")
-levels(as.factor(sd.3$Pneumo_IgG_day))
-sd.3$Pneumo_IgG_day <- factor(sd.3$Pneumo_IgG_day, levels = c("pneumo_IgG_pre", "pneumo_IgG_7", "pneumo_IgG_14", "pneumo_IgG_28"))
-
-meta.p.pneumo_IgG <- ggplot(sd.3, aes(x = Pneumo_IgG_day, y = log10(Pneumo_IgG), color = randomization_arm)) +
-  geom_point(size = 3) +
-  stat_summary(aes(group = randomization_arm, color = randomization_arm), fun.y=median, geom="line", lwd = 0.5, lty = 2) +
-  labs(color = "Randomization Arm", y = "Pneumococcus IgG (log10)") +
-  labs(x = "") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-plot_grid(meta.p.pneumo_IgG, labels = "A")
-
-# Tetanus IfF
-sd.4 <- sd %>%
-  gather("tetanus_IgG_pre", "tetanus_IgG_d7", "tetanus_IgG_d14", "tetanus_IgG_d28", key = "Tetanus_IgG_day", value = "Tetanus_IgG")
-levels(as.factor(sd.4$Tetanus_IgG_day))
-sd.4$Tetanus_IgG_day <- factor(sd.4$Tetanus_IgG_day, levels = c("tetanus_IgG_pre", "tetanus_IgG_d7", "tetanus_IgG_d14", "tetanus_IgG_d28"))
-levels(as.factor(sd.4$Tetanus_IgG_day))
-
-meta.p.tetanus_IgG <- ggplot(sd.4, aes(x = Tetanus_IgG_day, y = log10(Tetanus_IgG), color = randomization_arm)) +
-  geom_point(size = 3) +
-  stat_summary(aes(group = randomization_arm, color = randomization_arm), fun.y=median, geom="line", lwd = 0.5, lty = 2) +
-  labs(color = "Randomization Arm", y = "Tetanus IgG (log10)") +
-  labs(x = "") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-plot_grid(meta.p.tetanus_IgG, labels = "A")
-
-plot_grid(meta.p.rv_serum_IgA, meta.p.pneumo_IgG, meta.p.tetanus_IgG, meta.p.rv_ag.shedding, labels = c("A", "B", "C", "D"), nrow = 2, ncol = 2 )
-
-# Pre Rotabirus IgA
-summary(sd$pre_RV_IgA)
-
-ggplot(sd, aes(x = pre_RV_IgA)) +
-  geom_histogram(binwidth = 250) +
-  labs(y = "Count") +
-  facet_wrap(~randomization_arm)
-
-ggplot(sd, aes(x = randomization_arm, y = log10(pre_RV_IgA))) +
-  geom_boxplot() +
-  geom_point(aes(color = d7_rota_boost_updated), size = 3, shape = 1) +
-  labs(x = "")
-
-fit <- aov(log10(pre_RV_IgA) ~ randomization_arm, data=sd)
-summary(fit)
-TukeyHSD(fit)
-
-```
-##ASV summary statistics
-
-```{r data-assessment}
-# Create a new data frame of the sorted row sums, a column of sorted values from 1 to the total number of individuals/counts for each RSV and a categorical variable stating these are all RSVs.
-readsumsdf = data.frame(nreads = sort(taxa_sums(ps0), TRUE), 
-                        sorted = 1:ntaxa(ps0),
-                        type = "ASVs")
-
-
-# Add a column of sample sums (total number of individuals per sample)
-readsumsdf = rbind(readsumsdf,
-                   data.frame(nreads = sort(sample_sums(ps0), TRUE),
-                              sorted = 1:nsamples(ps0),
-                              type = "Samples"))
-
-# Make a data frame with a column for the read counts of each sample for histogram production
-sample_sum_df <- data.frame(sum = sample_sums(ps0))
-
-# Make plots
-# Generates a bar plot with # of reads (y-axis) for each taxa. Sorted from most to least abundant
-# Generates a second bar plot with # of reads (y-axis) per sample. Sorted from most to least
-p.reads = ggplot(readsumsdf, aes(x = sorted, y = nreads)) +
-  geom_bar(stat = "identity") +
-  ggtitle("ASV Assessment") +
-  scale_y_log10() +
-  facet_wrap(~type, scales = "free") +
-  ylab("# of Reads")
-
-# Histogram of the number of Samples (y-axis) at various read depths
-p.reads.hist <- ggplot(sample_sum_df, aes(x = sum)) + 
-  geom_histogram(color = "black", fill = "firebrick3", binwidth = 150) +
-  ggtitle("Distribution of sample sequencing depth") + 
-  xlab("Counts") +
-  ylab("# of Samples")
-
-# Final plot, side-by-side
-grid.arrange(p.reads, p.reads.hist, ncol = 2)
-
-# Basic summary statistics
-summary(sample_sums(ps0))
 
 ```
 ##Sample assessment
@@ -264,23 +108,19 @@ p.ss.boxplot<- ggplot(ss.df, aes_string(x, y = "ASV")) + # x is what you assigne
   geom_boxplot(outlier.colour="NA", aes(group = randomization_arm)) +
   scale_y_log10() +
   geom_hline(yintercept = y, lty = 2) + # Draws a dashed line across the threshold you set above as y
-  geom_jitter(alpha = 0.6, width = 0.15, size = 2.5) +
-  #geom_text(data = subset(ss.df, RSVs <= y), aes_string(x, y="RSVs", label=label), size=2, hjust -1) +# This labels a subset that fall below threshold variable y and labels them with the label variable
-  ggtitle("Number of ASV") +
-  ylab("ASV (log10)") +
+  geom_jitter(alpha = 0.6, width = 0.15, size = 3) +
+  labs(y = "ASV (log10)") +
   facet_grid(~day) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   theme(legend.position = "NULL") +
   theme(axis.title.x = element_blank())
 p.ss.boxplot
 
-write.table(ss.df, file = "./results/sample_summary.txt", sep = "\t")
-
 ```
 ##Outlier sample removal
 
 ```{r sample-removal}
-# Remove samples with fewer than 100 ASV
+# Remove samples with fewer than y ASV
 # Save samples that fell below the selected threshold
 ps.failed <- prune_samples(sample_sums(ps0) < y, ps0)
 nsamples(ps.failed)
@@ -300,7 +140,6 @@ min(sample_sums(ps0))
 
 ```{r taxon-cleaning}
 # Begin by removing sequences that were not classified as Bacteria or were classified as either mitochondria or chlorplast
-
 ps0 # Check the number of taxa prior to removal
 ps1 <- ps0 %>%
   subset_taxa(
@@ -311,77 +150,6 @@ ps1 <- ps0 %>%
   )
 ps1 # Confirm that the taxa were removed
 
-saveRDS(ps1, file = "./results/ps1.RDS")
-
-```
-##Prevalence assessment
-
-```{r prevalenca-assessment}
-# Intermediate data subsetting for prevelance plotting
-# Full subsetting with removal of zero count data will be performed in a subsequent chunk
-ps1.d_9 <- subset_samples(ps1, day == "-9")
-ps1.d0 <- subset_samples(ps1, day == "0")
-ps1.d7 <- subset_samples(ps1, day == "7")
-
-# Prevelance estimation
-# Calculate feature prevelance across the data set
-prevdf.d_9 <- apply(X = otu_table(ps1.d_9),MARGIN = ifelse(taxa_are_rows(ps1.d_9), yes = 1, no = 2),FUN = function(x){sum(x > 0)})
-prevdf.d0 <- apply(X = otu_table(ps1.d0),MARGIN = ifelse(taxa_are_rows(ps1.d0), yes = 1, no = 2),FUN = function(x){sum(x > 0)})
-prevdf.d7 <- apply(X = otu_table(ps1.d7),MARGIN = ifelse(taxa_are_rows(ps1.d7), yes = 1, no = 2),FUN = function(x){sum(x > 0)})
-
-# Add taxonomy and total read counts to prevdf
-prevdf.d_9 <- data.frame(Prevalence = prevdf.d_9, TotalAbundance = taxa_sums(ps1.d_9), tax_table(ps1.d_9))
-prevdf.d0 <- data.frame(Prevalence = prevdf.d0, TotalAbundance = taxa_sums(ps1.d0), tax_table(ps1.d0))
-prevdf.d7 <- data.frame(Prevalence = prevdf.d7, TotalAbundance = taxa_sums(ps1.d7), tax_table(ps1.d7))
-
-# Create a table of Phylum, their mean abundances across all samples, and the number of samples they were detected in
-plyr::ddply(prevdf.d_9, "Phylum", function(df1){cbind(mean(df1$Prevalence),sum(df1$Prevalence))})
-plyr::ddply(prevdf.d0, "Phylum", function(df1){cbind(mean(df1$Prevalence),sum(df1$Prevalence))})
-plyr::ddply(prevdf.d7, "Phylum", function(df1){cbind(mean(df1$Prevalence),sum(df1$Prevalence))})
-
-# Reorder based on visual inspection of relative dominance of each taxa for plotting
-prevdf.d_9$Phylum <- factor(prevdf.d_9$Phylum, levels = c("Firmicutes", "Bacteroidetes", "Proteobacteria", "Actinobacteria", "Verrucomicrobia", "Lentisphaerae", "Fusobacteria", "Elusimicrobia", "Spirochaetes", "Synergistetes", "Tenericutes"))
-prevdf.d0$Phylum <- factor(prevdf.d0$Phylum, levels = c("Firmicutes", "Bacteroidetes", "Proteobacteria", "Actinobacteria", "Verrucomicrobia", "Lentisphaerae", "Fusobacteria", "Elusimicrobia", "Spirochaetes", "Synergistetes", "Tenericutes"))
-prevdf.d7$Phylum <- factor(prevdf.d7$Phylum, levels = c("Firmicutes", "Bacteroidetes", "Proteobacteria", "Actinobacteria", "Verrucomicrobia", "Lentisphaerae", "Fusobacteria", "Elusimicrobia", "Spirochaetes", "Synergistetes", "Tenericutes"))
-
-#Prevalence plot - t1
-prevdf1.d_9 <- subset(prevdf.d_9, Phylum %in% get_taxa_unique(ps1.d_9, "Phylum"))
-p.prevdf1.d_9 <- ggplot(prevdf1.d_9, aes(TotalAbundance, Prevalence / nsamples(ps1.d_9),color=Family)) +
-  # geom_hline(yintercept = 0.03, alpha = 0.5, linetype = 2) +
-  geom_point(size = 1.5, alpha = 0.7) +
-  scale_x_log10(limits = c(1,10000), breaks = c(100,10000)) +
-  xlab("Total Abundance") + ylab("Prevalence [Frac. Samples]") +
-  facet_grid(~Phylum) +
-  theme(legend.position="None") +
-  theme(axis.title.x = element_blank()) +
-  ggtitle("Day -9")
-
-#Prevalence plot - t2
-prevdf1.d0 <- subset(prevdf.d0, Phylum %in% get_taxa_unique(ps1.d0, "Phylum"))
-p.prevdf1.d0 <- ggplot(prevdf1.d0, aes(TotalAbundance, Prevalence / nsamples(ps1.d0),color=Family)) +
-  # geom_hline(yintercept = 0.03, alpha = 0.5, linetype = 2) +
-  geom_point(size = 1.5, alpha = 0.7) +
-  scale_x_log10(limits = c(1,10000), breaks = c(100,10000)) +
-  xlab("Total Abundance") + ylab("Prevalence [Frac. Samples]") +
-  facet_grid(~Phylum) +
-  theme(legend.position="None") +
-  theme(axis.title.x = element_blank()) +
-  ggtitle("Day 0")
-
-#Prevalence plot - t3
-prevdf1.d7 <- subset(prevdf.d7, Phylum %in% get_taxa_unique(ps1.d7, "Phylum"))
-p.prevdf1.d7 <- ggplot(prevdf1.d7, aes(TotalAbundance, Prevalence / nsamples(ps1.d7),color=Family)) +
-  # geom_hline(yintercept = 0.03, alpha = 0.5, linetype = 2) +
-  geom_point(size = 1.5, alpha = 0.7) +
-  scale_x_log10(limits = c(1,10000), breaks = c(100,10000)) +
-  xlab("Total Abundance") + ylab("Prevalence [Frac. Samples]") +
-  facet_grid(~Phylum) +
-  theme(legend.position="None") +
-  theme(axis.title.x = element_blank()) +
-  ggtitle("Day 7")
-
-grid.arrange(p.prevdf1.d_9, p.prevdf1.d0, p.prevdf1.d7, nrow = 3)
-
 ```
 ##Data transformations
 
@@ -389,34 +157,6 @@ grid.arrange(p.prevdf1.d_9, p.prevdf1.d0, p.prevdf1.d7, nrow = 3)
 # Some of these are not used in subsequent analysis, but are coded as a chunk here for convenience
 # Transform to Realative abundances
 ps1.ra <- transform_sample_counts(ps1, function(OTU) OTU/sum(OTU))
-
-# Transform to Proportional Abundance
-ps1.prop <- transform_sample_counts(ps1, function(x) min(sample_sums(ps1)) * x/sum(x))
-
-# Log transformation moves to a more normal distribution
-ps1.log <- transform_sample_counts(ps1, function(x) log(1 + x))
-
-# View how each function altered count data
-par(mfrow=c(1,4))
-plot(sort(sample_sums(ps1), TRUE), type = "o", main = "Native", ylab = "ASVs", xlab = "Samples")
-plot(sort(sample_sums(ps1.log), TRUE), type = "o", main = "log Transfromed", ylab = "ASVs", xlab = "Samples")
-plot(sort(sample_sums(ps1.ra), TRUE), type = "o", main = "Relative Abundance", ylab = "ASVs", xlab = "Samples")
-plot(sort(sample_sums(ps1.prop), TRUE), type = "o", main = "Proportional Abundance", ylab = "ASVs", xlab = "Samples")
-par(mfrow=c(1,1))
-
-# Histograms of the non-transformed data vs. the transformed data can address the shift to normality
-p.nolog <- qplot(rowSums(otu_table(ps1))) + ggtitle("Raw Counts") +
-  theme_bw() +
-  xlab("Row Sum") +
-  ylab("# of Samples")
-
-p.log <- qplot(log10(rowSums(otu_table(ps1)))) +
-  ggtitle("log10 transformed counts") +
-  theme_bw() +
-  xlab("Row Sum") +
-  ylab("# of Samples")
-
-grid.arrange(p.nolog, p.log, ncol = 2)
 
 ```
 ##Subsetting
@@ -454,14 +194,11 @@ ps1.abx.log <- transform_sample_counts(ps1.abx, function(x) log(1 + x))
 ##Community composition plotting
 
 ```{r community-composition-plots}
-# Community composition - Baseline and Week 24 timepoints combined
 # Phyla level plots
 # Melt to long format (for ggploting) 
 # Prune out phyla below % in each sample
 
-# Creat a Phyla level table for external analysis
-# write.table(ps1_phylum, file = "./results/phylum.txt", sep="\t")
-
+# Set propotional threshold for taxa to be removed
 threshold = 0.03
 
 ps1_phylum <- ps1 %>%
@@ -511,17 +248,19 @@ levels(dat.1$Phylum)
 
 p.boxplot.phylum.1 <- ggboxplot(dat.1, x = "randomization_arm", y = "Abundance", outlier.shape = NA) +
   geom_jitter(width = 0.2) +
-  labs(y = "Relative Abundance") +
+  labs(title = "Figure S3", y = "Relative Abundance") +
   ylim(0,1.5) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   stat_compare_means(comparisons = my_comparisons.1) +
   facet_grid(day~Phylum)
 p.boxplot.phylum.1
+# Note: For the figure in the manuscript we manually replaced the asterisks and removed the ns for aesthitic purposes
 
 class(sample_data(ps1)$day)
 sample_data(ps1)$day <- factor(sample_data(ps1)$day)
 class(sample_data(ps1)$day)
 
+# Not inlcuded in the final manuscript, but referenced in the text
 p.boxplot.phylum.2 <- ggpaired(dat.1, x = "day", y = "Abundance", outlier.shape = NA, id = "patient_ID") +
   geom_jitter(width = 0.2) +
   labs(y = "Relative Abundance") +
@@ -529,7 +268,6 @@ p.boxplot.phylum.2 <- ggpaired(dat.1, x = "day", y = "Abundance", outlier.shape 
   stat_compare_means(comparisons = my_comparisons.2, hide.ns = FALSE, label = "p.signif") +
   facet_grid(randomization_arm~Phylum) +
   ylim(0,1.25)
-p.boxplot.phylum.2
 
 ```
 
@@ -537,7 +275,7 @@ p.boxplot.phylum.2
 dat$day <- as.numeric(as.character(dat$day))
 p.gam.phylum <- ggplot(dat.1, aes(x = day, y = Abundance, color = Phylum)) +
   stat_smooth(method = "gam", formula = y ~ s(x, bs = "cr", k = 3)) +
-  labs(y = "Relative Abundance") +
+  labs(title = "Figure 4", y = "Relative Abundance") +
   scale_x_continuous(breaks = c(-9,0,7)) +
   scale_y_continuous(limits = c(0,1)) +
   geom_jitter(size = 3, alpha = 0.4, width = 1.5) +
@@ -548,15 +286,13 @@ p.gam.phylum
 ##Alpha diversity
 
 ```{r add-sample-data, include = FALSE}
-# Diversity
+# Diversity calculations
 diversity <- global(ps1)
 head(diversity)
 
+# Bind sample data to diversity data
 sd.1 <- as.data.frame(sample_data(ps1)) # useful to coerce the phyloseq object into an R data frame
 ps1.rich <- merge(sd.1, diversity, by ="row.names") # merge sd.1 by row names
-
-# Add divergence measurements
-ps1.rich$divergence <- divergence(ps1)
 
 ```
 
@@ -565,7 +301,7 @@ my.comparisons.paired <- list(c("Pre", "0"), c("Pre", "7"), c("0","7"))
 
 p.paired.rich <- ggpaired(ps1.rich, x = "day", y = "richness_0", outlier.shape = NA, id = "patient_ID") +
   geom_jitter(width = 0.2) +
-  ylab("Richness") +
+  labs(y = "Richness") +
   theme(axis.title.x = element_blank()) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   facet_grid(~randomization_arm) +
@@ -574,32 +310,19 @@ p.paired.rich <- ggpaired(ps1.rich, x = "day", y = "richness_0", outlier.shape =
 
 p.paired.sd <- ggpaired(ps1.rich, x = "day", y = "diversities_shannon", outlier.shape = NA, id = "patient_ID") +
   geom_jitter(width = 0.2) +
-  ylab("Shannon Diversity") +
+  labs(y = "Shannon Diversity") +
   theme(axis.title.x = element_blank()) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   facet_grid(~randomization_arm) +
   stat_compare_means(label = "p.signif", method = "t.test", ref.group = "-9", hide.ns = TRUE)
 
-grid.arrange(p.paired.rich, p.paired.sd, nrow = 2)
-
-```
-
-```{r alpha-div-smoother-plots}
-p.rich.gam <- ggplot(ps1.rich, aes(x = day, y = richness_0, color = randomization_arm, group = randomization_arm)) +
-  stat_smooth(method = "loess") +
-  labs(y = "Richness", color = "Treatment") +
-  geom_point(size = 3, alpha = 0.4)
-
-p.sd.gam <- ggplot(ps1.rich, aes(x = day, y = diversities_shannon, color = randomization_arm, group = randomization_arm)) +
-  stat_smooth(method = "loess") +
-  labs(y = "Shannon Diversity", color = "Treatment") + 
-  geom_point(size = 3, alpha = 0.4)
-
-grid.arrange(p.rich.gam, p.sd.gam, ncol = 2)
+ggarrange(p.paired.rich, p.paired.sd, nrow = 2)
+# Note: Published plot had a few additional manual edits for aesthetic reasons
 
 ```
 
 ```{r alpha-div-day7-roto-boost-alpha-diversity}
+# These plots were not inlcuded in the final manuscript, but were discussed in the results
 p.rich.rota_boost <- ggboxplot(subset(ps1.rich, randomization_arm == "Narrow spectrum antibiotics"), x = "d7_rota_boost_updated", y = "richness_0", outlier.shape = NA) +
   geom_jitter(width = 0.2) +
   ylim(0,250) +
@@ -619,7 +342,7 @@ p.sd.rota_boost <- ggboxplot(subset(ps1.rich, randomization_arm == "Narrow spect
   stat_compare_means(label = "p.format", method = "t.test", hide.ns = TRUE) +
   facet_grid(~day)
 
-grid.arrange(p.rich.rota_boost, p.sd.rota_boost, nrow = 2)
+ggarrange(p.rich.rota_boost, p.sd.rota_boost, nrow = 2)
 
 ```
 ##Alpha diversity and shedding
@@ -627,6 +350,7 @@ grid.arrange(p.rich.rota_boost, p.sd.rota_boost, nrow = 2)
 Shedding was defined as having one or more stool samples per patient positive for rotavirus shedding.
 
 ```{r alpha-div-shedding-alpha-diversity}
+# These plots were not inlcuded in the final manuscript, but were discussed in the results
 p.rich.shedding <- ggboxplot(subset(ps1.rich, randomization_arm == "Narrow spectrum antibiotics"), x = "Shedding", y = "richness_0", outlier.shape = NA) +
   geom_jitter(width = 0.2) +
   ylim(0,250) +
@@ -695,7 +419,8 @@ p.ord.uni <- plot_ordination(ps1.top4, ord.ps1.uni, color = "randomization_arm",
   theme(panel.grid.major = element_blank()) +
   theme(panel.grid.minor = element_blank())
 
-grid.arrange(p.ord.uni, p.ord.wuni, nrow = 2)
+ggarrange(p.ord.uni, p.ord.wuni, nrow = 2)
+# Note: The UniFrac plot was not included in the final manuscript
 
 # PCoA plot - Shedding
 p.ord.wuni.shed <- plot_ordination(ps1.top4, ord.ps1.wuni, color = "randomization_arm", shape = "Shedding") +
@@ -714,7 +439,8 @@ p.ord.uni.shed <- plot_ordination(ps1.top4, ord.ps1.uni, color = "randomization_
   labs(color = "Treatment", shape = "Rotavirus Boosted") +
   theme(legend.position = "NULL")
 
-grid.arrange(p.ord.uni.shed, p.ord.wuni.shed, nrow = 2)
+ggarrange(p.ord.uni.shed, p.ord.wuni.shed, nrow = 2)
+# Note: This figure was not included in the final manuscript but was discussed in the results
 
 ```
 
@@ -839,6 +565,8 @@ kable(pairwise.adonis(ps1_otu_table.d7[,1:1588], ps1_otu_table.d7$randomization_
 ```
 
 ```{r ADONIS}
+# Note: Many of these calculations were not included in the final manuscript but are included here for reference
+
 # Function to run adonis test on a physeq object and a variable from metadata
 doadonis <- function(physeq, category) {
   bdist <- phyloseq::distance(physeq, "wunifrac")
@@ -934,89 +662,6 @@ doadonis(ps1.abx.d7, "d7_rota_boost_updated") # ***
 ```
 ##Differential Abundance Testing
 
-```{r LRT-diff-abund-testing-data-prep, include=FALSE}
-# Time series should be set as a factor per DeSeq2 recommendations
-class(sample_data(ps1.con)$day)
-sample_data(ps1.con)$day <- factor(sample_data(ps1.con)$day)
-class(sample_data(ps1.con)$day)
-
-class(sample_data(ps1.narrow)$day)
-sample_data(ps1.narrow)$day <- factor(sample_data(ps1.narrow)$day)
-class(sample_data(ps1.narrow)$day)
-
-class(sample_data(ps1.broad)$day)
-sample_data(ps1.broad)$day <- factor(sample_data(ps1.broad)$day)
-class(sample_data(ps1.broad)$day)
-
-# Calculate geometric means prior to estimate size factors
-# This is required for data sets with lots of zeros
-gm_mean = function(x, na.rm=TRUE){
-  exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
-}
-
-```
-#**Likelihood ratio test:** Identifying taxa differentially abundant in one or more time points between 1) patients who boosted versus thoses that did not and 2) patients that shed rotavirus in their stool and those that did not
-
-##1) Rotavirus Boost: Narrow Spectrum Antibiotics
-
-```{r diff-abund-rotaboost-narrow-LRT}
-# Test for taxa which at one or more time points after time 0 showed a d7-rota-boost-specific effect
-# Convert phyloseq object to DeSeq2 table
-ds.boost.narrow.LRT <- phyloseq_to_deseq2(ps1.narrow, ~d7_rota_boost_updated + day + d7_rota_boost_updated:day)
-
-# Calculate geometric means prior to estimate size factors
-geoMeans.ds.boost.narrow.LRT <- apply(counts(ds.boost.narrow.LRT), 1, gm_mean)
-ds.boost.narrow.LRT <- estimateSizeFactors(ds.boost.narrow.LRT, geoMeans = geoMeans.ds.boost.narrow.LRT)
-
-# Run DeSeq2
-dds.boost.narrow.LRT <- DESeq(ds.boost.narrow.LRT, test="LRT", reduced = ~d7_rota_boost_updated + day)
-
-# Tabulate results
-res.dds.boost.narrow.LRT = results(dds.boost.narrow.LRT)
-res.dds.boost.narrow.LRT$symbol <- mcols(dds.boost.narrow.LRT)$symbol
-head(res.dds.boost.narrow.LRT[order(res.dds.boost.narrow.LRT$padj), ], 4)
-write.table(res.dds.boost.narrow.LRT, file = "./results/deseq_rotaboost_narrow_LRT.txt", sep = "\t")
-mcols(res.dds.boost.narrow.LRT)
-summary(res.dds.boost.narrow.LRT)
-
-# Plot taxa with lowest p-value
-fiss.dds.boost.narrow.LRT <- plotCounts(dds.boost.narrow.LRT, which.min(res.dds.boost.narrow.LRT$padj), 
-                   intgroup = c("day","d7_rota_boost_updated"), returnData = TRUE)
-ggplot(fiss.dds.boost.narrow.LRT,
-  aes(x = as.numeric(day), y = count, color = d7_rota_boost_updated, group = d7_rota_boost_updated)) + 
-  geom_point() + geom_smooth(se = FALSE, method = "loess") + scale_y_log10()
-
-```
-##2) Shedding: Narrow Spectrum Antibiotics Only
-
-```{r diff-abund-Shedding-narrow-LRT}
-# Test for taxa which at one or more time points after time 0 showed a Shedding-specific effect
-# Convert phyloseq object to DeSeq2 table
-ds.Shedding.narrow.LRT <- phyloseq_to_deseq2(ps1.narrow, ~Shedding + day + Shedding:day)
-
-# Calculate geometric means prior to estimate size factors
-geoMeans.ds.Shedding.narrow.LRT <- apply(counts(ds.Shedding.narrow.LRT), 1, gm_mean)
-ds.Shedding.narrow.LRT <- estimateSizeFactors(ds.Shedding.narrow.LRT, geoMeans = geoMeans.ds.Shedding.narrow.LRT)
-
-# Run DeSeq2
-dds.Shedding.narrow.LRT <- DESeq(ds.Shedding.narrow.LRT, test="LRT", reduced = ~Shedding + day)
-
-# Tabulate results
-res.dds.Shedding.narrow.LRT = results(dds.Shedding.narrow.LRT)
-res.dds.Shedding.narrow.LRT$symbol <- mcols(dds.Shedding.narrow.LRT)$symbol
-head(res.dds.Shedding.narrow.LRT[order(res.dds.Shedding.narrow.LRT$padj), ], 4)
-write.table(res.dds.Shedding.narrow.LRT, file = "./results/deseq_Shedding_narrow_LRT.txt", sep = "\t")
-mcols(res.dds.Shedding.narrow.LRT)
-summary(res.dds.Shedding.narrow.LRT)
-
-# Plot taxa with lowest p-value
-fiss.dds.Shedding.narrow.LRT <- plotCounts(dds.Shedding.narrow.LRT, which.min(res.dds.Shedding.narrow.LRT$padj), 
-                   intgroup = c("day","d7_rota_boost_updated"), returnData = TRUE)
-ggplot(fiss.dds.Shedding.narrow.LRT,
-  aes(x = as.numeric(day), y = count, color = d7_rota_boost_updated, group = d7_rota_boost_updated)) + 
-  geom_point() + geom_smooth(se = FALSE, method = "loess") + scale_y_log10()
-
-```
 ##Pairwise comparisons across treatments at each sampling time
 
 - Control Vs. narrow x's 3 time points (-9, 0, 7)
@@ -1027,6 +672,12 @@ ggplot(fiss.dds.Shedding.narrow.LRT,
 ```{r diffab-treatment-pairwise-prep}
 # Set alpha
 alpha = 0.05
+
+# Calculate geometric means prior to estimate size factors
+# This is required for data sets with lots of zeros
+gm_mean = function(x, na.rm=TRUE){
+  exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
+}
 
 # Subset
 # Pairwise treatment groups
@@ -1767,9 +1418,6 @@ write.table(df.unique, file = "./Results/df_unique.txt", sep = "\t")
 ```{r bind-taxonomy-dataframes}
 # Load other taxonomies preprocessed with dada2
 ps1.rdp <- readRDS("./data/ps0.human_volunteer.rdp.RDS")
-ps1.gg <- readRDS("./data/ps0.human_volunteer.gg.RDS")
-ps1.silva <- readRDS("./data/ps0.human_volunteer.silva.RDS")
-ps1.hitDB <- readRDS("./data/ps0.human_volunteer.hitdb.RDS")
 
 # Create appropirately formated taxa table
 # RDP
@@ -1779,46 +1427,6 @@ df.all.rdp <- left_join(df.all, ps1.rdp.tax, by = "ASV")
 write.table(df.all.rdp, file = "./results/df_all_rdp.txt", sep = "\t")
 df.unique.rdp <- left_join(df.unique, ps1.rdp.tax, by = "ASV")
 write.table(df.unique.rdp, file = "./results/df_unique_rdp.txt", sep = "\t")
-
-# GreenGenes
-ps1.gg.tax <- as.tibble(as.data.frame(tax_table(ps1.gg)))
-ps1.gg.tax <- rownames_to_column(ps1.gg.tax, var = "ASV")
-df.all.gg <- left_join(df.all, ps1.gg.tax, by = "ASV")
-write.table(df.all.gg, file = "./results/df_all_gg.txt", sep = "\t")
-df.unique.gg <- left_join(df.unique, ps1.gg.tax, by = "ASV")
-write.table(df.unique.gg, file = "./results/df_unique_gg.txt", sep = "\t")
-
-# Silva
-ps1.silva.tax <- as.tibble(as.data.frame(tax_table(ps1.silva)))
-ps1.silva.tax <- rownames_to_column(ps1.silva.tax, var = "ASV")
-df.all.silva <- left_join(df.all, ps1.silva.tax, by = "ASV")
-write.table(df.all.silva, file = "./results/df_all_silva.txt", sep = "\t")
-df.unique.silva <- left_join(df.unique, ps1.silva.tax, by = "ASV")
-write.table(df.unique.silva, file = "./results/df_unique_silva.txt", sep = "\t")
-
-# HitDB
-ps1.hitDB.tax <- as.tibble(as.data.frame(tax_table(ps1.hitDB)))
-ps1.hitDB.tax <- rownames_to_column(ps1.hitDB.tax, var = "ASV")
-df.all.hitDB <- left_join(df.all, ps1.hitDB.tax, by = "ASV")
-write.table(df.all.hitDB, file = "./results/df_all_hitDB.txt", sep = "\t")
-df.unique.hitDB <- left_join(df.unique, ps1.hitDB.tax, by = "ASV")
-write.table(df.unique.hitDB, file = "./results/df_unique_hitDB.txt", sep = "\t")
-
-```
-
-```{r compare-assignments}
-library(daff)
-diff.rdp_gg <- diff_data(df.all.rdp, df.all.gg)
-write_diff(diff.rdp_gg, file = "./results/diff_rdp_gg.csv")
-render_diff(diff.rdp_gg)
-
-diff.rdp_silva <- diff_data(df.all.rdp, df.all.silva)
-write_diff(diff.rdp_silva, file = "./results/diff.rdp_silva.csv")
-render_diff(diff.rdp_silva)
-
-diff.gg_silva <- diff_data(df.all.gg, df.all.silva)
-write_diff(diff.gg_silva, file = "./results/diff.gg_silva.csv")
-render_diff(diff.gg_silva)
 
 ```
 
@@ -1860,13 +1468,13 @@ rlog.unique.rdp <- inner_join(df.unique.rdp, rlog.all, by = "ASV")
 p.unique.rdp <- ggplot(rlog.all.rdp, aes(x = day, y = Abundance, group = randomization_arm, color = randomization_arm)) +
   geom_point(size = 1, alpha = 0.6) +
   scale_y_log10() +
-  theme(legend.position = "bottom") +
+  theme(legend.position = "NULL") +
   facet_wrap(Phylum.x~Family.x) +
   stat_smooth(data = subset(rlog.all.rdp, randomization_arm == "Narrow spectrum antibiotics")) +
   stat_smooth(data = subset(rlog.all.rdp, randomization_arm == "Broad spectrum antibiotics")) +
-  stat_smooth(data = subset(rlog.all.rdp, randomization_arm == "No antibiotics"))
+  stat_smooth(data = subset(rlog.all.rdp, randomization_arm == "No antibiotics")) +
+  labs(color = "Treatment")
 p.unique.rdp
-
 
 ```
 
@@ -1882,20 +1490,35 @@ df.all.rdp.2 <- left_join(df.all.2, ps1.rdp.tax, by = "ASV")
 # Select from rlog normalized data
 dfs.all.rdp.2 <- inner_join(df.all.2, rlog.all, by = "ASV")
 
-p.volcano.summary.rdp.2 <- ggplot(df.all.rdp.2, aes(x = log2FoldChange, y = -log10(padj), color = factor(Comparison, labels = c("Control v. Broad: Day -9", "Control v. Broad: Day 0", "Control v. Broad: Day 7", "Control v. Narrow: Day 0", "Narrow v Broad: Day 0", "Narrow v. Broad: Day 7")), size = log10(baseMean))) +
+# Adjust factor levels to order by time point (roughly)
+df.all.rdp.2$Comparison <- as.factor(df.all.rdp.2$Comparison)
+levels(df.all.rdp.2$Comparison)
+df.all.rdp.2$Comparison <- factor(df.all.rdp.2$Comparison, levels = c("Control_v_Broad_d_9", "Control_v_Narrow_d0", "Control_v_Broad_d0", "Narrow_v_Broad_d0", "Control_v_Broad_d7", "Narrow_v_Broad_d7"))
+levels(df.all.rdp.2$Comparison)
+df.all.rdp.2$Comparison <- factor(df.all.rdp.2$Comparison, labels = c("Control v. Broad: Day -9", "Control v. Narrow: Day 0", "Control v. Broad: Day 0", "Broad v Narrow: Day 0", "Control v. Broad: Day 7", "Broad v. Narrow: Day 7"))
+df.all.rdp.2$Comparison
+
+p.volcano.summary.rdp <- ggplot(df.all.rdp.2, aes(x = log2FoldChange, y = -log10(padj), color = Comparison, size = log10(baseMean))) +
   geom_point() +
   geom_vline(xintercept = 0, linetype = "dashed", color = "dark grey") +
-  facet_wrap(~Family, ncol = 3) +
+  facet_wrap(Phylum~Family, ncol = 3) +
   annotate("text", x = -15, y = 27, label = "Control") +
   annotate("text", x = 15, y = 27, label = "Treated") +
   annotate("rect", xmin = -Inf, xmax = 0, ymin = 0, ymax = Inf, alpha = 0.2, fill = "forestgreen") +
   annotate("rect", xmin = 0, xmax = Inf, ymin = 0, ymax = Inf, alpha = 0.2, fill = "firebrick3") +
   labs(color = "Comparison") +
-  scale_color_brewer(palette = "Paired") +
-  scale_y_continuous(limits = c(0,30), expand = c(0, 0))
-p.volcano.summary.rdp.2
+  scale_color_brewer(palette = "Dark2") +
+  scale_y_continuous(limits = c(0,30), expand = c(0, 0)) +
+  guides(colour = guide_legend(override.aes = list(size=3))) +
+  theme(legend.position = "right")
+p.volcano.summary.rdp
 
-ggplotly(p.volcano.summary.rdp.2)
+ggplotly(p.volcano.summary.rdp)
+
+```
+
+```{r treatment-volcano-smoother-for-manuscript}
+ggarrange(p.volcano.summary.rdp, p.unique.rdp, nrow = 2, labels = c("A)", "B)"), heights = c(1.3,1))
 
 ```
 
@@ -2099,75 +1722,6 @@ p.diff.ab.shed.smooth <- ggplot(df.all.shed.counts, aes(x = day, y = Abundance, 
 ```{r diffab-figure-for-manuscript}
 ggarrange(ggarrange(p.boost.point, p.shed.point, nrow = 2, labels = c("A)", "B)")),
           ggarrange(p.diff.ab.boost.smooth, p.diff.ab.shed.smooth, nrow = 2, labels = c("C)", "D)")), widths = c(1.75,1), ncol = 2)
-
-```
-
-```{r synergistaceae-analysis}
-# Subset Synergistaceae
-dat.2.syn <- subset(dat.2, Family == "Synergistaceae")
-dat.2.syn <- droplevels(dat.2.syn)
-levels(dat.2.syn$Genus)
-
-# 
-ggboxplot(dat.2.syn, x = "d7_rota_boost_updated", y = "Abundance", outlier.shape = NA, label = "patient_ID") +
-  geom_point() +
-  facet_wrap(randomization_arm~Species) +
-  stat_compare_means(label = "p.signif", method = "t.test")
-
-# Subset prevelant prevotella for export and to be used in blastn searching to better classify ASVs
-dat.2.prev.filt <- filter(dat.2.prev, Abundance > 0.01)
-dat.2.prev.filt$patient_ID <- as.factor(dat.2.prev.filt$patient_ID)
-ggplot(dat.2.prev.filt, aes(x = patient_ID, y = Abundance, fill = Species)) +
-  coord_flip() +
-  geom_bar(stat = "identity") +
-  facet_wrap(~day)
-
-distinct.prevotella.ASV <- distinct(dat.2.prev.filt, OTU, .keep_all = TRUE)
-nrow(distinct.prevotella.ASV)
-write.table(distinct.prevotella.ASV, file = "./results/distinct_prevotella_ASV.txt", sep = "\t") 
-
-# Exported sequences were queried against the NCBI 16S database using blastn
-dat.prev.blast_annotated <- read_tsv(file = "./results/prevotella_blast_annot.txt")
-dat.prev.blast_annotated$patient_ID <- as.factor(dat.prev.blast_annotated$patient_ID)
-p.prevotella <- ggplot(dat.prev.blast_annotated, aes(x = patient_ID, y = Abundance, fill = blastn_tophit_species)) +
-  coord_flip() +
-  geom_bar(stat = "identity") +
-  facet_wrap(~day) +
-  scale_fill_brewer(palette = "Dark2") +
-  labs(fill = "Species", x = "Patient ID", y = "Relative Abundance")
-p.prevotella
-  
-#Trajectory of P. corpi - Boost
-p.pcorpi.day <- ggpaired(dat.2.prev.filt, x = "day", y = "Abundance", outlier.shape = NA, id = "patient_ID") +
-  geom_point(size = 3, aes(color = randomization_arm, shape = d7_rota_boost_updated)) +
-  labs(y = "Relative Abundance", x = "") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  stat_compare_means(label = "p.format", method = "t.test", comparisons = my_comparisons.2, hide.ns = TRUE) +
-  theme(legend.position = "right") +
-  labs(color = "Treatment", title = "P. corpi", subtitle = "No vs. Yes Boost", shape = "Day 7 Rota Boost") +
-  facet_wrap(~d7_rota_boost_updated, ncol = 1) +
-  scale_color_brewer(palette = "Dark2") +
-  ylim(0,1.0)
-p.pcorpi.day
-
-#Day 7 P.corpi
-dat.2.prev.filt.d7 <- subset(dat.2.prev.filt, day == "7")
-dat.2.prev.filt.d7$day
-dat.2.pcorpi.filt.d7 <- subset(dat.2.prev.d7, Species == "copri")
-dat.2.pcorpi.filt.d7$Species
-dat.2.pcorpi.filt.d7 <- droplevels(dat.2.pcorpi.filt.d7)
-dat.2.pcorpi.filt.d7$Species
-
-p.corpi.d7 <- ggboxplot(dat.2.pcorpi.filt.d7, x = "d7_rota_boost_updated", y = "Abundance", outlier.shape = NA) +
-  geom_point(size = 2, aes(color = randomization_arm)) +
-  labs(y = "Relative Abundance", x = "RV Boost") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  stat_compare_means(label = "p.format", method = "t.test", hide.ns = TRUE) +
-  theme(legend.position = "right") +
-  labs(color = "Treatment", shape = "Day 7 Rota Boost") +
-  scale_color_brewer(palette = "Dark2") +
-  ylim(0,0.8)
-p.corpi.d7
 
 ```
 
