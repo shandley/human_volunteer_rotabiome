@@ -18,6 +18,15 @@ Antibiotics were provided for 7 days (day -3 to -9) prior to vaccination with th
 
 Vaccination outcome was determined by a combination of fecal and serum antibody tests at periods for 28 days. Stool was collected at Day -9 (antibiotic initiation), Day 0 (vaccine administration) and Day 7 (post-vaccination) and subjected to 16S rRNA gene amplicon sequencing. Samples were demultiplexed and preprocessed with dada2 to extract amplicon sequence varaints (ASVs). ASVs were analyzed using R with heavy reliance on PhyloSeq.
 
-## Sample failure rate
+## Reference
 
-There was an unexpectedly high failure rate on the sequencing run with 50 out of the 172 sample failing to produce enough sequences to pass processing in dada2.
+TBD
+
+## Raw data
+
+Raw data is associated with sequence archive PRJEB25634.
+
+## Contact Information
+
+Scott Handley: shandley@wustl.edu
+Vanessa Harris: v.harris@aighd.org
