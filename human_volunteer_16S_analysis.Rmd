@@ -284,7 +284,7 @@ p.boxplot.phylum.2 <- ggboxplot(dat.1, x = "randomization_arm", y = "Abundance",
   labs(title = "Figure S3", y = "Relative Abundance", x = "") +
   coord_cartesian(ylim = c(0, 1.5)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  #stat_compare_means(comparisons = my_comparisons.1, label = "p.signif", hide.ns = TRUE) +
+  stat_compare_means(comparisons = my_comparisons.1, label = "p.format", hide.ns = TRUE) +
   facet_grid(day~Phylum)
 p.boxplot.phylum.2
 # Note: For the figure in the manuscript we manually replaced the asterisks and removed the ns for aesthetic purposes
@@ -302,12 +302,18 @@ p.boxplot.phylum.3
 ```
 
 ```{r phyla-smoother-plots}
-dat$day <- as.numeric(as.character(dat$day))
-p.gam.phylum <- ggplot(dat.1, aes(x = day, y = Abundance, color = Phylum)) +
+# Reorder for legend consistency
+# Reorder
+levels(dat.1$Phylum)
+dat.1.reorder <- dat.1 %>%
+  mutate(Phylum = reorder(Phylum, Abundance, function(x) -mean(x)))
+levels(dat.1.reorder$Phylum)
+
+p.gam.phylum <- ggplot(dat.1.reorder, aes(x = day, y = Abundance, color = Phylum)) +
   stat_smooth(method = "gam", formula = y ~ s(x, bs = "cr", k = 3)) +
-  labs(title = "Figure 4", y = "Relative Abundance") +
+  labs(title = "Figure 4", y = "Relative Abundance", x = "Day") +
   scale_x_continuous(breaks = c(-9,0,7)) +
-  scale_y_continuous(limits = c(0,1)) +
+  coord_cartesian(ylim = c(0, 1)) +
   geom_jitter(size = 3, alpha = 0.4, width = 1.5) +
   facet_grid(~randomization_arm)
 p.gam.phylum
@@ -591,7 +597,7 @@ doadonis(ps1.d0, "randomization_arm") # ***
 doadonis(ps1.d7, "randomization_arm") # **
 
 # Antibiotics treatment
-doadonis(ps1.d_9, "antibiotics") # 
+doadonis(ps1.d_9, "antibiotics")
 
 # Randomization arm over time
 doadonis(ps1.con, "day") # n.s.
