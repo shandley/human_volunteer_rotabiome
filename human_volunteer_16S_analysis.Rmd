@@ -4,7 +4,7 @@ author: "Barry Hykes Jr. and Scott A. Handley"
 date: '`r format(Sys.Date(), "%B %d, %Y")`'
 output: html_document
 ---
-**Project Description:** Analysis of 16S rRNA amplicon data from a cohort of human volunteers (heatlhy men aged 18-35) randomized into three treatment groups: 1) control (no antibiotics), 2) narrow spectrum (oral vancomycin) or 3) broad-spectrum (oral vancomycin, ciprofloxacin, and metronidazole) antibiotics. Antibiotics were taken for 7-dats prior to vaccination with Rotarix (RVV), polysaccharide-pneumococcal (Pneumo 23) and tetanus-toxoid vaccine. The primary endpoint was difference in 28 days-post-vaccination anti-RV IgA. Secondary endpoints were proportion of volunteers with day 7 anti-RV IgA boosting (>=2 fold-increase), absolute and proportion of RV-antigen shedding, anti-RV, pneumococcal and anti-tetanus IgG.
+**Project Description:** Analysis of 16S rRNA amplicon data from a cohort of human volunteers (heatlhy men aged 18-35) randomized into three treatment groups: 1) control (no antibiotics), 2) narrow spectrum (oral vancomycin) or 3) broad-spectrum (oral vancomycin, ciprofloxacin, and metronidazole) antibiotics. Antibiotics were taken for 7-days prior to vaccination with Rotarix (RVV), polysaccharide-pneumococcal (Pneumo 23) and tetanus-toxoid vaccine. The primary endpoint was difference in 28 days-post-vaccination anti-RV IgA. Secondary endpoints were proportion of volunteers with day 7 anti-RV IgA boosting (>=2 fold-increase), absolute and proportion of RV-antigen shedding, anti-RV, pneumococcal and anti-tetanus IgG.
 
 **Primary Collaborator:**
 Vanessa Harris (v.harris@aighd.org)
@@ -20,9 +20,9 @@ The following Phyloseq objects are available. Each is distinguished based on the
 
 **Workflow details:** The R commands below represent a full analysis of the following:
 
-1) Sample quality control
+1) Sample assessment
 2) ASV properties
-3) Community Composition
+3) Community composition
 4) Alpha diversity
 5) Beta diversity
 6) Differential abundance testing
@@ -193,6 +193,8 @@ ps1.abx.log <- transform_sample_counts(ps1.abx, function(x) log(1 + x))
 ```
 ##Community composition plotting
 
+These plots were not included in the final manuscript but remain here as compositional overviews. Interactive plots are also produced.
+
 ```{r community-composition-plots}
 # Phyla level plots
 # Melt to long format (for ggploting) 
@@ -235,39 +237,67 @@ glom <- tax_glom(ps1.ra, taxrank = 'Phylum')
 # Create dataframe from phyloseq object
 dat <- as.tibble(psmelt(glom))
 
-## Boxplot with stats
 # Set comparisons
 my_comparisons.1 <- list( c("No antibiotics", "Narrow spectrum antibiotics"), c("No antibiotics", "Broad spectrum antibiotics"), c("Narrow spectrum antibiotics", "Broad spectrum antibiotics") )
 my_comparisons.2 <- list( c("-9", "0"), c("-9", "7"), c("0", "7") )
 
-# Reduced to most abundant phylum
+# Table of mean abundances per Phylum
+dat.summary <- dat %>%
+  group_by(Phylum) %>%
+  summarise(mean = mean(Abundance)) %>%
+  arrange(desc(mean))
+ggplot(dat.summary, aes(x = fct_reorder(Phylum, mean), y = mean)) +
+  geom_point() +
+  coord_flip()
+
+# Reorder
 levels(dat$Phylum)
-dat.1 <- filter(dat, Phylum %in% c("Bacteroidetes", "Firmicutes", "Proteobacteria", "Verrucomicrobia"))
+dat.reorder <- dat %>%
+  mutate(Phylum = reorder(Phylum, Abundance, mean))
+levels(dat.reorder$Phylum)
+
+# Determine how mean abundances of Phyla are altered by treatment
+p.boxplot.phylum.1 <- ggboxplot(dat.reorder, x = "randomization_arm", y = "Abundance", outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  labs(title = "Figure S3", y = "Relative Abundance", x = "") +
+  coord_cartesian(ylim = c(0, 1.5)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(comparisons = my_comparisons.1, label = "p.signif", hide.ns = TRUE) +
+  facet_grid(day~Phylum)
+p.boxplot.phylum.1
+# Note: For the figure in the manuscript we manually replaced the asterisks and removed the ns for aesthetic purposes
+
+# Subset to phyla with treatment alteration in mean abundnaces
+dat.1 <- filter(dat.reorder, Phylum %in% c("Firmicutes",
+                                   "Bacteroidetes",
+                                   "Proteobacteria",
+                                   "Verrucomicrobia",
+                                   "Actinobacteria",
+                                   "Fusobacteria"))
+levels(dat.1$Phylum)
 dat.1 <- droplevels(dat.1)
 levels(dat.1$Phylum)
 
-p.boxplot.phylum.1 <- ggboxplot(dat, x = "randomization_arm", y = "Abundance", outlier.shape = NA) +
+# Boxplot with treatment altered phyla
+p.boxplot.phylum.2 <- ggboxplot(dat.1, x = "randomization_arm", y = "Abundance", outlier.shape = NA) +
   geom_jitter(width = 0.2) +
   labs(title = "Figure S3", y = "Relative Abundance", x = "") +
-  ylim(0,1.5) +
+  coord_cartesian(ylim = c(0, 1.5)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  stat_compare_means(comparisons = my_comparisons.1) +
+  #stat_compare_means(comparisons = my_comparisons.1, label = "p.signif", hide.ns = TRUE) +
   facet_grid(day~Phylum)
-p.boxplot.phylum.1
-# Note: For the figure in the manuscript we manually replaced the asterisks and removed the ns for aesthitic purposes
-
-class(sample_data(ps1)$day)
-sample_data(ps1)$day <- factor(sample_data(ps1)$day)
-class(sample_data(ps1)$day)
+p.boxplot.phylum.2
+# Note: For the figure in the manuscript we manually replaced the asterisks and removed the ns for aesthetic purposes
 
 # Not inlcuded in the final manuscript, but referenced in the text
-p.boxplot.phylum.2 <- ggpaired(dat.1, x = "day", y = "Abundance", outlier.shape = NA, id = "patient_ID") +
+p.boxplot.phylum.3 <- ggpaired(dat.1, x = "day", y = "Abundance", outlier.shape = NA, id = "patient_ID") +
   geom_jitter(width = 0.2) +
   labs(y = "Relative Abundance") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   stat_compare_means(comparisons = my_comparisons.2, hide.ns = FALSE, label = "p.signif") +
   facet_grid(randomization_arm~Phylum) +
-  ylim(0,1.25)
+  coord_cartesian(ylim = c(0, 1.5))
+p.boxplot.phylum.3
 
 ```
 
@@ -299,7 +329,7 @@ ps1.rich <- merge(sd.1, diversity, by ="row.names") # merge sd.1 by row names
 ```{r paired-richness}
 my.comparisons.paired <- list(c("Pre", "0"), c("Pre", "7"), c("0","7"))
 
-p.paired.rich <- ggpaired(ps1.rich, x = "day", y = "richness_0", outlier.shape = NA, id = "patient_ID") +
+p.paired.rich.1 <- ggpaired(ps1.rich, x = "day", y = "richness_0", outlier.shape = NA, id = "patient_ID") +
   geom_jitter(width = 0.2) +
   labs(y = "Richness") +
   theme(axis.title.x = element_blank()) +
@@ -308,7 +338,7 @@ p.paired.rich <- ggpaired(ps1.rich, x = "day", y = "richness_0", outlier.shape =
   stat_compare_means(label = "p.signif", method = "t.test", ref.group = "-9", hide.ns = TRUE) +
   theme(axis.text.x = element_blank())
 
-p.paired.sd <- ggpaired(ps1.rich, x = "day", y = "diversities_shannon", outlier.shape = NA, id = "patient_ID") +
+p.paired.sd.1 <- ggpaired(ps1.rich, x = "day", y = "diversities_shannon", outlier.shape = NA, id = "patient_ID") +
   geom_jitter(width = 0.2) +
   labs(y = "Shannon Diversity") +
   theme(axis.title.x = element_blank()) +
@@ -316,8 +346,28 @@ p.paired.sd <- ggpaired(ps1.rich, x = "day", y = "diversities_shannon", outlier.
   facet_grid(~randomization_arm) +
   stat_compare_means(label = "p.signif", method = "t.test", ref.group = "-9", hide.ns = TRUE)
 
-ggarrange(p.paired.rich, p.paired.sd, nrow = 2)
-# Note: Published plot had a few additional manual edits for aesthetic reasons
+ggarrange(p.paired.rich.1, p.paired.sd.1, nrow = 2, labels = c("A)", "B)"))
+
+# Alpha diversity comparisons between treatments
+p.paired.rich.2 <- ggboxplot(ps1.rich, x = "randomization_arm", y = "richness_0", outlier.shape = NA, id = "patient_ID") +
+  geom_jitter(width = 0.2) +
+  labs(y = "Richness") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  facet_grid(~day) +
+  stat_compare_means(label = "p.format", comparisons = my_comparisons.1, hide.ns = TRUE) +
+  theme(axis.text.x = element_blank())
+
+p.paired.sd.2 <- ggboxplot(ps1.rich, x = "randomization_arm", y = "diversities_shannon", outlier.shape = NA, id = "patient_ID") +
+  geom_jitter(width = 0.2) +
+  labs(y = "Shannon Diversity") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  facet_grid(~day) +
+  stat_compare_means(label = "p.format", comparisons = my_comparisons.1, hide.ns = TRUE)
+
+ggarrange(p.paired.rich.2, p.paired.sd.2, nrow = 2, labels = c("A)", "B)"))
+# Note: This figure was not included in the final manuscript, but the analysis and p-values were referenced in the text
 
 ```
 
@@ -326,7 +376,7 @@ ggarrange(p.paired.rich, p.paired.sd, nrow = 2)
 p.rich.rota_boost <- ggboxplot(subset(ps1.rich, randomization_arm == "Narrow spectrum antibiotics"), x = "d7_rota_boost_updated", y = "richness_0", outlier.shape = NA) +
   geom_jitter(width = 0.2) +
   ylim(0,250) +
-  labs(y = "Richness") +
+  labs(y = "Richness", title = "Boost") +
   theme(axis.title.x = element_blank()) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   stat_compare_means(label = "p.format", method = "t.test", hide.ns = TRUE) +
@@ -342,7 +392,8 @@ p.sd.rota_boost <- ggboxplot(subset(ps1.rich, randomization_arm == "Narrow spect
   stat_compare_means(label = "p.format", method = "t.test", hide.ns = TRUE) +
   facet_grid(~day)
 
-ggarrange(p.rich.rota_boost, p.sd.rota_boost, nrow = 2)
+ggarrange(p.rich.rota_boost, p.sd.rota_boost, nrow = 2, labels = c("A)", "B)"))
+# Note: This figure was not included in the final manuscript, but the analysis and p-values were referenced in the text
 
 ```
 ##Alpha diversity and shedding
@@ -350,11 +401,10 @@ ggarrange(p.rich.rota_boost, p.sd.rota_boost, nrow = 2)
 Shedding was defined as having one or more stool samples per patient positive for rotavirus shedding.
 
 ```{r alpha-div-shedding-alpha-diversity}
-# These plots were not inlcuded in the final manuscript, but were discussed in the results
 p.rich.shedding <- ggboxplot(subset(ps1.rich, randomization_arm == "Narrow spectrum antibiotics"), x = "Shedding", y = "richness_0", outlier.shape = NA) +
   geom_jitter(width = 0.2) +
   ylim(0,250) +
-  labs(y = "Richness") +
+  labs(y = "Richness", title = "Shedding") +
   theme(axis.title.x = element_blank()) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   stat_compare_means(label = "p.format", method = "t.test", hide.ns = TRUE) +
@@ -371,8 +421,8 @@ p.sd.shedding <- ggboxplot(subset(ps1.rich, randomization_arm == "Narrow spectru
   facet_grid(~day) +
   scale_x_discrete(labels = c("No", "Yes"))
 
-grid.arrange(p.rich.shedding, p.sd.shedding, nrow = 2)
-grid.arrange(p.rich.rota_boost, p.rich.shedding, p.sd.rota_boost, p.sd.shedding, ncol = 2, nrow = 2)
+ggarrange(p.rich.shedding, p.sd.shedding, nrow = 2, labels = c("A)", "B)"))
+# Note: This figure was not included in the final manuscript, but the analysis and p-values were referenced in the text
 
 ```
 ##Beta diversity analysis
@@ -412,7 +462,7 @@ p.ord.uni <- plot_ordination(ps1, ord.ps1.uni, color = "randomization_arm", shap
 ggarrange(p.ord.uni, p.ord.wuni, nrow = 2)
 
 # Species ordination for all Phylum
-# Note: The final manuscript just showed the top 4 most abundant taxa for space reasons. Code for this is in the following chunk
+# Note: The final manuscript just showed the top 6 most abundant phylum. Code for this is in the following chunk
 plot_ordination(ps1, ord.ps1.wuni, color = "Genus", type = "taxa") +
   geom_point(size=2.5) +
   geom_point(colour = "grey50", size = 0.25) +
@@ -426,28 +476,28 @@ plot_ordination(ps1, ord.ps1.wuni, color = "Genus", type = "taxa") +
 
 ```
 
-```{r beta-div-top-species}
+```{r beta-div-top-6-phylum}
 # Select only top phyla for display purposes
 phylum.sum <- tapply(taxa_sums(ps1), tax_table(ps1)[, "Phylum"], sum, na.rm=TRUE)
 
-# Select top 4 most abundant phyla (to correspond with other figrures)
-top4phyla <- names(sort(phylum.sum, TRUE))[1:4]
-top4phyla
-ps1.top4 <- prune_taxa((tax_table(ps1)[, "Phylum"] %in% top4phyla), ps1)
-get_taxa_unique(ps1.top4, "Phylum")
+# Select top 6 most abundant phyla (to correspond with other figrures)
+top6phyla <- names(sort(phylum.sum, TRUE))[1:6]
+top6phyla
+ps1.top6 <- prune_taxa((tax_table(ps1)[, "Phylum"] %in% top6phyla), ps1)
+get_taxa_unique(ps1.top6, "Phylum")
 
 # UniFrac
-ord.ps1.uni.top4 <- ordinate(ps1.top4, method = "PCoA", distance = "unifrac")
+ord.ps1.uni.top6 <- ordinate(ps1.top6, method = "PCoA", distance = "unifrac")
 
 # weighted UniFrac
-ord.ps1.wuni.top4 <- ordinate(ps1.top4, method = "PCoA", distance = "wunifrac")
+ord.ps1.wuni.top6 <- ordinate(ps1.top6, method = "PCoA", distance = "wunifrac")
 
-p.ord.species <- plot_ordination(ps1.top4, ord.ps1.wuni, color = "Genus", type = "taxa") +
+p.ord.species <- plot_ordination(ps1.top6, ord.ps1.wuni, color = "Genus", type = "taxa") +
   geom_point(size=2.5) +
   geom_point(colour = "grey50", size = 0.25) +
   labs(color = "Day 7 Rotavirus Boosted", shape = "Treatment") +
   theme(legend.position = "null") +
-  facet_wrap(~Phylum, ncol = 4) +
+  facet_wrap(~Phylum, ncol = 6) +
   geom_hline(yintercept = 0, size = 0.1, lty = 2) +
   geom_vline(xintercept = 0, size = 0.1, lty = 2) +
   theme(panel.grid.major = element_blank()) +
@@ -458,10 +508,9 @@ p.ord.species
 
 ```{r figure-for-manuscript}
 ggarrange(p.ord.uni, p.ord.wuni, p.ord.species, nrow = 3, labels = c("A)", "B)", "C)"))
+# Note: p.ord.species was re-ordered in Keynote because SH couldn't figure out a simple way to reorder the phyla in PhyloSeq. He is sure there is a more sophisticated way to do this though :)
 
 ```
-
-
 
 ```{r beta-div-figure-for-manuscript}
 ggarrange(p.ord.wuni,
@@ -472,6 +521,11 @@ ggarrange(p.ord.wuni,
 ##Premanova significance testing (ADONIS)
 
 ```{r pairwise-ADONIS}
+# Create relevant subsets
+ps1.d_9 <- subset_samples(ps1, day == "-9")
+ps1.d0 <- subset_samples(ps1, day == "0")
+ps1.d7 <- subset_samples(ps1, day == "7")
+
 # Day -9
 ps1_otu_table.d_9 <- as.data.frame(otu_table(ps1.d_9))
 sd.df.d_9 <- as.data.frame(sample_data(ps1.d_9))
