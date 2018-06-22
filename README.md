@@ -2,7 +2,7 @@
 
 63 healthy volunteers were enrolled to test how antibiotic pre-treatment altered vaccine immunogenicity.
 
-[[https://github.com/shandley/human_volunteer_rotabiome/graphical_abstract.png]]
+![alt text](https://github.com/shandley/human_volunteer_rotabiome/graphical_abstract.png)
 
 ## Cohort Break down:
 
