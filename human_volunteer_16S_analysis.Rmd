@@ -246,9 +246,9 @@ dat.1 <- filter(dat, Phylum %in% c("Bacteroidetes", "Firmicutes", "Proteobacteri
 dat.1 <- droplevels(dat.1)
 levels(dat.1$Phylum)
 
-p.boxplot.phylum.1 <- ggboxplot(dat.1, x = "randomization_arm", y = "Abundance", outlier.shape = NA) +
+p.boxplot.phylum.1 <- ggboxplot(dat, x = "randomization_arm", y = "Abundance", outlier.shape = NA) +
   geom_jitter(width = 0.2) +
-  labs(title = "Figure S3", y = "Relative Abundance") +
+  labs(title = "Figure S3", y = "Relative Abundance", x = "") +
   ylim(0,1.5) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   stat_compare_means(comparisons = my_comparisons.1) +
@@ -377,10 +377,58 @@ grid.arrange(p.rich.rota_boost, p.rich.shedding, p.sd.rota_boost, p.sd.shedding,
 ```
 ##Beta diversity analysis
 
-```{r beta-div-samples}
+```{r beta-div}
+# UniFrac
+ord.ps1.uni <- ordinate(ps1, method = "PCoA", distance = "unifrac")
+
+# weighted UniFrac
+ord.ps1.wuni <- ordinate(ps1, method = "PCoA", distance = "wunifrac")
+
+# PCoA plot - Boost
+p.ord.wuni <- plot_ordination(ps1, ord.ps1.wuni, color = "randomization_arm", shape = "d7_rota_boost_updated") +
+  geom_point(size=3, alpha = 0.7) +
+  scale_color_brewer(palette = "Dark2") +
+  geom_point(colour = "grey50", size = 0.5) +
+  facet_grid(~ day) +
+  labs(color = "Treatment", shape = "Day 7 Rotavirus Boosted") +
+  theme(legend.position = "null") +
+  geom_hline(yintercept = 0, size = 0.1, lty = 2) +
+  geom_vline(xintercept = 0, size = 0.1, lty = 2) +
+  theme(panel.grid.major = element_blank()) +
+  theme(panel.grid.minor = element_blank())
+
+p.ord.uni <- plot_ordination(ps1, ord.ps1.uni, color = "randomization_arm", shape = "d7_rota_boost_updated") +
+  geom_point(size=3, alpha = 0.7) +
+  scale_color_brewer(palette = "Dark2") +
+  geom_point(colour = "grey50", size = 0.5) +
+  facet_grid(~ day) +
+  labs(color = "Treatment", shape = "Rotavirus Boosted") +
+  theme(legend.position = "null")+
+  geom_hline(yintercept = 0, size = 0.1, lty = 2) +
+  geom_vline(xintercept = 0, size = 0.1, lty = 2) +
+  theme(panel.grid.major = element_blank()) +
+  theme(panel.grid.minor = element_blank())
+
+ggarrange(p.ord.uni, p.ord.wuni, nrow = 2)
+
+# Species ordination for all Phylum
+# Note: The final manuscript just showed the top 4 most abundant taxa for space reasons. Code for this is in the following chunk
+plot_ordination(ps1, ord.ps1.wuni, color = "Genus", type = "taxa") +
+  geom_point(size=2.5) +
+  geom_point(colour = "grey50", size = 0.25) +
+  labs(color = "Day 7 Rotavirus Boosted", shape = "Treatment") +
+  theme(legend.position = "null") +
+  facet_wrap(~Phylum, ncol = 4) +
+  geom_hline(yintercept = 0, size = 0.1, lty = 2) +
+  geom_vline(xintercept = 0, size = 0.1, lty = 2) +
+  theme(panel.grid.major = element_blank()) +
+  theme(panel.grid.minor = element_blank())
+
+```
+
+```{r beta-div-top-species}
 # Select only top phyla for display purposes
 phylum.sum <- tapply(taxa_sums(ps1), tax_table(ps1)[, "Phylum"], sum, na.rm=TRUE)
-sort(phylum.sum)
 
 # Select top 4 most abundant phyla (to correspond with other figrures)
 top4phyla <- names(sort(phylum.sum, TRUE))[1:4]
@@ -389,62 +437,11 @@ ps1.top4 <- prune_taxa((tax_table(ps1)[, "Phylum"] %in% top4phyla), ps1)
 get_taxa_unique(ps1.top4, "Phylum")
 
 # UniFrac
-ord.ps1.uni <- ordinate(ps1.top4, method = "PCoA", distance = "unifrac")
+ord.ps1.uni.top4 <- ordinate(ps1.top4, method = "PCoA", distance = "unifrac")
 
 # weighted UniFrac
-ord.ps1.wuni <- ordinate(ps1.top4, method = "PCoA", distance = "wunifrac")
+ord.ps1.wuni.top4 <- ordinate(ps1.top4, method = "PCoA", distance = "wunifrac")
 
-# PCoA plot - Boost
-p.ord.wuni <- plot_ordination(ps1.top4, ord.ps1.wuni, color = "randomization_arm", shape = "d7_rota_boost_updated") +
-  geom_point(size=3, alpha = 0.7) +
-  scale_color_brewer(palette = "Dark2") +
-  geom_point(colour = "grey50", size = 0.5) +
-  facet_grid(~ day) +
-  labs(color = "Treatment", shape = "Day 7 Rotavirus Boosted") +
-  theme(legend.position = "right") +
-  geom_hline(yintercept = 0, size = 0.1, lty = 2) +
-  geom_vline(xintercept = 0, size = 0.1, lty = 2) +
-  theme(panel.grid.major = element_blank()) +
-  theme(panel.grid.minor = element_blank())
-
-p.ord.uni <- plot_ordination(ps1.top4, ord.ps1.uni, color = "randomization_arm", shape = "d7_rota_boost_updated") +
-  geom_point(size=3, alpha = 0.7) +
-  scale_color_brewer(palette = "Dark2") +
-  geom_point(colour = "grey50", size = 0.5) +
-  facet_grid(~ day) +
-  labs(color = "Treatment", shape = "Rotavirus Boosted") +
-  theme(legend.position = "bottom")+
-  geom_hline(yintercept = 0, size = 0.1, lty = 2) +
-  geom_vline(xintercept = 0, size = 0.1, lty = 2) +
-  theme(panel.grid.major = element_blank()) +
-  theme(panel.grid.minor = element_blank())
-
-ggarrange(p.ord.uni, p.ord.wuni, nrow = 2)
-# Note: The UniFrac plot was not included in the final manuscript
-
-# PCoA plot - Shedding
-p.ord.wuni.shed <- plot_ordination(ps1.top4, ord.ps1.wuni, color = "randomization_arm", shape = "Shedding") +
-  geom_point(size=3, alpha = 0.7) +
-  scale_color_brewer(palette = "Dark2") +
-  geom_point(colour = "grey50", size = 0.5) +
-  facet_grid(~ day) +
-  labs(color = "Day 7 Rotavirus Boosted", shape = "Treatment") +
-  theme(legend.position = "bottom")
-
-p.ord.uni.shed <- plot_ordination(ps1.top4, ord.ps1.uni, color = "randomization_arm", shape = "Shedding") +
-  geom_point(size=3, alpha = 0.7) +
-  scale_color_brewer(palette = "Dark2") +
-  geom_point(colour = "grey50", size = 0.5) +
-  facet_grid(~ day) +
-  labs(color = "Treatment", shape = "Rotavirus Boosted") +
-  theme(legend.position = "NULL")
-
-ggarrange(p.ord.uni.shed, p.ord.wuni.shed, nrow = 2)
-# Note: This figure was not included in the final manuscript but was discussed in the results
-
-```
-
-```{r beta-div-species}
 p.ord.species <- plot_ordination(ps1.top4, ord.ps1.wuni, color = "Genus", type = "taxa") +
   geom_point(size=2.5) +
   geom_point(colour = "grey50", size = 0.25) +
@@ -459,78 +456,12 @@ p.ord.species
 
 ```
 
-```{r prevotella-analysis}
-# Subset prevotella
-dat.2 <- psmelt(ps1.ra)
-dat.2.prev <- subset(dat.2, Genus == "Prevotella")
-dat.2.prev <- droplevels(dat.2.prev)
-levels(dat.2.prev$Genus)
-
-# ID Prevotella species associated with rotavirus boosting at Day 7
-dat.2.prev$day
-dat.2.prev.d7 <- subset(dat.2.prev, day == "7")
-dat.2.prev.d7$day
-ggboxplot(dat.2.prev.d7, x = "d7_rota_boost_updated", y = "Abundance", outlier.shape = NA) +
-  geom_point() +
-  facet_wrap(~Species) +
-  stat_compare_means(label = "p.signif", method = "t.test")
-
-# Subset prevelant prevotella for export and to be used in blastn searching to better classify ASVs
-dat.2.prev.filt <- filter(dat.2.prev, Abundance > 0.01)
-dat.2.prev.filt$patient_ID <- as.factor(dat.2.prev.filt$patient_ID)
-ggplot(dat.2.prev.filt, aes(x = patient_ID, y = Abundance, fill = Species)) +
-  coord_flip() +
-  geom_bar(stat = "identity") +
-  facet_wrap(~day)
-
-distinct.prevotella.ASV <- distinct(dat.2.prev.filt, OTU, .keep_all = TRUE)
-nrow(distinct.prevotella.ASV)
-write.table(distinct.prevotella.ASV, file = "./results/distinct_prevotella_ASV.txt", sep = "\t") 
-
-# Exported sequences were queried against the NCBI 16S database using blastn
-dat.prev.blast_annotated <- read_tsv(file = "./results/prevotella_blast_annot.txt")
-dat.prev.blast_annotated$patient_ID <- as.factor(dat.prev.blast_annotated$patient_ID)
-p.prevotella <- ggplot(dat.prev.blast_annotated, aes(x = patient_ID, y = Abundance, fill = blastn_tophit_species)) +
-  coord_flip() +
-  geom_bar(stat = "identity") +
-  facet_wrap(~day) +
-  scale_fill_brewer(palette = "Dark2") +
-  labs(fill = "Species", x = "Patient ID", y = "Relative Abundance")
-p.prevotella
-  
-#Trajectory of P. corpi - Boost
-p.pcorpi.day <- ggpaired(dat.2.prev.filt, x = "day", y = "Abundance", outlier.shape = NA, id = "patient_ID") +
-  geom_point(size = 3, aes(color = randomization_arm, shape = d7_rota_boost_updated)) +
-  labs(y = "Relative Abundance", x = "") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  stat_compare_means(label = "p.format", method = "t.test", comparisons = my_comparisons.2, hide.ns = TRUE) +
-  theme(legend.position = "right") +
-  labs(color = "Treatment", title = "P. corpi", subtitle = "No vs. Yes Boost", shape = "Day 7 Rota Boost") +
-  facet_wrap(~d7_rota_boost_updated, ncol = 1) +
-  scale_color_brewer(palette = "Dark2") +
-  ylim(0,1.0)
-p.pcorpi.day
-
-#Day 7 P.corpi
-dat.2.prev.filt.d7 <- subset(dat.2.prev.filt, day == "7")
-dat.2.prev.filt.d7$day
-dat.2.pcorpi.filt.d7 <- subset(dat.2.prev.d7, Species == "copri")
-dat.2.pcorpi.filt.d7$Species
-dat.2.pcorpi.filt.d7 <- droplevels(dat.2.pcorpi.filt.d7)
-dat.2.pcorpi.filt.d7$Species
-
-p.corpi.d7 <- ggboxplot(dat.2.pcorpi.filt.d7, x = "d7_rota_boost_updated", y = "Abundance", outlier.shape = NA) +
-  geom_point(size = 2, aes(color = randomization_arm)) +
-  labs(y = "Relative Abundance", x = "RV Boost") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  stat_compare_means(label = "p.format", method = "t.test", hide.ns = TRUE) +
-  theme(legend.position = "right") +
-  labs(color = "Treatment", shape = "Day 7 Rota Boost") +
-  scale_color_brewer(palette = "Dark2") +
-  ylim(0,0.8)
-p.corpi.d7
+```{r figure-for-manuscript}
+ggarrange(p.ord.uni, p.ord.wuni, p.ord.species, nrow = 3, labels = c("A)", "B)", "C)"))
 
 ```
+
+
 
 ```{r beta-div-figure-for-manuscript}
 ggarrange(p.ord.wuni,
@@ -1466,7 +1397,7 @@ rlog.unique.rdp <- inner_join(df.unique.rdp, rlog.all, by = "ASV")
 # Note: ggplot2 will not plot smoothers for individual groups if the first smoother "fails"
 # to adjust for this stat_smooth is applied to each individual groups
 p.unique.rdp <- ggplot(rlog.all.rdp, aes(x = day, y = Abundance, group = randomization_arm, color = randomization_arm)) +
-  geom_point(size = 1, alpha = 0.6) +
+  geom_jitter(size = 1, alpha = 0.6, width = 0.15) +
   scale_y_log10() +
   theme(legend.position = "NULL") +
   facet_wrap(Phylum.x~Family.x) +
@@ -1510,7 +1441,7 @@ p.volcano.summary.rdp <- ggplot(df.all.rdp.2, aes(x = log2FoldChange, y = -log10
   scale_color_brewer(palette = "Dark2") +
   scale_y_continuous(limits = c(0,30), expand = c(0, 0)) +
   guides(colour = guide_legend(override.aes = list(size=3))) +
-  theme(legend.position = "right")
+  theme(legend.position = "NULL")
 p.volcano.summary.rdp
 
 ggplotly(p.volcano.summary.rdp)
