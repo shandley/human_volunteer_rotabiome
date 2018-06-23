@@ -554,7 +554,7 @@ ps1_otu_table.d7$randomization_arm <- sd.df.d7$randomization_arm
 kable(pairwise.adonis(ps1_otu_table.d7[,1:1588], ps1_otu_table.d7$randomization_arm), format = "pandoc", caption = "Day 7")
 
 ```
-##Differential Abundance Testing
+#Differential Abundance Testing
 
 ##Pairwise comparisons across treatments at each sampling time
 
@@ -563,6 +563,7 @@ kable(pairwise.adonis(ps1_otu_table.d7[,1:1588], ps1_otu_table.d7$randomization_
 - Narrow vs. Broad x's 3 time points (-9, 0, 7)
 **Total:** 9 Comparisons
 
+# Differential abundance testing preperation
 ```{r diffab-treatment-pairwise-prep}
 # Set alpha
 alpha = 0.05
@@ -573,7 +574,7 @@ gm_mean = function(x, na.rm=TRUE){
   exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
 }
 
-# Subset
+# Generate subsets
 # Pairwise treatment groups
 ps1.CvN <- subset_samples(ps1, randomization_arm != "Broad spectrum antibiotics")
 sample_data(ps1.CvN)$randomization_arm
@@ -598,7 +599,7 @@ ps1.CvN.7 <- subset_samples(ps1.CvN, day == "7")
 ps1.CvN.7
 sample_data(ps1.CvN.7)$day
 
-#control vs broad by day
+# Control vs Broad by day
 ps1.CvB_9 <- subset_samples(ps1.CvB, day == "-9")
 ps1.CvB_9
 sample_data(ps1.CvB_9)$day
@@ -611,7 +612,7 @@ ps1.CvB.7 <- subset_samples(ps1.CvB, day == "7")
 ps1.CvB.7
 sample_data(ps1.CvB.7)$day
 
-#narrow vs broad by day
+# Narrow vs Broad by day
 ps1.NvB_9 <- subset_samples(ps1.NvB, day == "-9")
 ps1.NvB_9
 sample_data(ps1.NvB_9)$day
@@ -691,7 +692,6 @@ ggplotly(volcano.NoAbx.Narrow.d_9)
 ##Control vs Narrow Spectrum Day 0
 
 ```{r diff-ab-control-v-narrow-d0}
-
 # Differential Abundance Testing
 sample_data(ps1.CvN.0)$randomization_arm
 sample_data(ps1.CvN.0)$day
@@ -1016,7 +1016,6 @@ ggplotly(volcano.NoAbx.Broad.d7)
 ##Narrow vs. Broad Spectrum Antibiotics Day -9
 
 ```{r diffab-control-vs-broad-d.9}
-
 # Differential Abundance Testing
 sample_data(ps1.NvB_9)$randomization_arm
 sample_data(ps1.NvB_9)$day
@@ -1079,7 +1078,7 @@ ggplotly(volcano.Narrow.Broad.d_9)
 ```
 ##Narrow vs. Broad Spectrum Antibiotics Day 0
 
-```{r diffab-control-vs-broad-d0}
+```{r diffab-narrow-vs-broad-d0}
 # Differential Abundance Testing
 sample_data(ps1.NvB.0)$randomization_arm
 sample_data(ps1.NvB.0)$day
@@ -1204,6 +1203,7 @@ mcols(res.dds.Narrow.Broad.d7, use.names = TRUE)
 ggplotly(volcano.Narrow.Broad.d7)
 
 ```
+## Enrich and compile deseq2 results tables
 
 ```{r diff-abund-tables}
 # Control vs. Narrow D_9
@@ -1308,6 +1308,7 @@ nrow(df.unique)
 write.table(df.unique, file = "./Results/df_unique.txt", sep = "\t")
 
 ```
+## Bind taxonomy to results
 
 ```{r bind-taxonomy-dataframes}
 # Load other taxonomies preprocessed with dada2
@@ -1323,6 +1324,7 @@ df.unique.rdp <- left_join(df.unique, ps1.rdp.tax, by = "ASV")
 write.table(df.unique.rdp, file = "./results/df_unique_rdp.txt", sep = "\t")
 
 ```
+# Individual ASV plots
 
 ```{r ground-truth-plots-prep}
 ##Ground truth plots
@@ -1360,14 +1362,14 @@ rlog.unique.rdp <- inner_join(df.unique.rdp, rlog.all, by = "ASV")
 # Note: ggplot2 will not plot smoothers for individual groups if the first smoother "fails"
 # to adjust for this stat_smooth is applied to each individual groups
 p.unique.rdp <- ggplot(rlog.all.rdp, aes(x = day, y = Abundance, group = randomization_arm, color = randomization_arm)) +
-  geom_jitter(size = 1, alpha = 0.6, width = 0.15) +
+  geom_jitter(size = 1, alpha = 0.6, width = 0.5) +
   scale_y_log10() +
   theme(legend.position = "NULL") +
   facet_wrap(Phylum.x~Family.x) +
-  stat_smooth(data = subset(rlog.all.rdp, randomization_arm == "Narrow spectrum antibiotics")) +
-  stat_smooth(data = subset(rlog.all.rdp, randomization_arm == "Broad spectrum antibiotics")) +
-  stat_smooth(data = subset(rlog.all.rdp, randomization_arm == "No antibiotics")) +
-  labs(color = "Treatment")
+  stat_smooth(data = subset(rlog.all.rdp, randomization_arm == "Narrow spectrum antibiotics", method = "loess")) +
+  stat_smooth(data = subset(rlog.all.rdp, randomization_arm == "Broad spectrum antibiotics", method = "loess")) +
+  stat_smooth(data = subset(rlog.all.rdp, randomization_arm == "No antibiotics", method = "loess")) +
+  labs(color = "Treatment", x = "Day", y = "Abundance (rlog)")
 p.unique.rdp
 
 ```
@@ -1393,20 +1395,22 @@ df.all.rdp.2$Comparison <- factor(df.all.rdp.2$Comparison, labels = c("Control v
 df.all.rdp.2$Comparison
 
 p.volcano.summary.rdp <- ggplot(df.all.rdp.2, aes(x = log2FoldChange, y = -log10(padj), color = Comparison, size = log10(baseMean))) +
-  geom_point() +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "dark grey") +
+  geom_point(alpha = 0.7) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "dark grey", lwd = 1) +
   facet_wrap(Phylum~Family, ncol = 3) +
   annotate("text", x = -15, y = 27, label = "Control") +
   annotate("text", x = 15, y = 27, label = "Treated") +
-  annotate("rect", xmin = -Inf, xmax = 0, ymin = 0, ymax = Inf, alpha = 0.2, fill = "forestgreen") +
-  annotate("rect", xmin = 0, xmax = Inf, ymin = 0, ymax = Inf, alpha = 0.2, fill = "firebrick3") +
   labs(color = "Comparison") +
+  labs(x=expression(log[2]*" fold-change")) +
+  labs(y=expression(-log[10]*" adjusted p-value")) +
+  labs(size=expression(log[10]*" base mean")) +
   scale_color_brewer(palette = "Dark2") +
   scale_y_continuous(limits = c(0,30), expand = c(0, 0)) +
   guides(colour = guide_legend(override.aes = list(size=3))) +
-  theme(legend.position = "NULL")
+  theme(legend.position = "null")
 p.volcano.summary.rdp
 
+# Interctive plot
 ggplotly(p.volcano.summary.rdp)
 
 ```
@@ -1415,6 +1419,7 @@ ggplotly(p.volcano.summary.rdp)
 ggarrange(p.volcano.summary.rdp, p.unique.rdp, nrow = 2, labels = c("A)", "B)"), heights = c(1.3,1))
 
 ```
+## Differential abundance for boosting at each time point
 
 ```{r diffab-boosting}
 # Day -9
@@ -1490,11 +1495,16 @@ p.boost.point <- ggplot(subset(df.unique.boost, Comparison != "Boost: Day -9"), 
   geom_point(aes(size = log10(baseMean)), alpha = 0.7) +
   facet_grid(~Comparison) +
   geom_vline(xintercept = 0, lty = 2) +
+  theme(legend.position = "NULL") +
   xlim(-40, 40) +
   scale_color_brewer(palette = "Dark2") +
-  geom_errorbarh(aes(xmax = log2FoldChange + lfcSE, xmin = log2FoldChange - lfcSE), size=0.5)
+  geom_errorbarh(aes(xmax = log2FoldChange + lfcSE, xmin = log2FoldChange - lfcSE), size=0.5, height = 0.3) +
+  labs(x=expression(log[2]*" fold-change")) +
+  labs(size=expression(log[10]*" base mean"))
+p.boost.point
 
 ```
+## Differential abundance for shedding at each time point
 
 ```{r diffab-shedding}
 # Day -9
@@ -1529,7 +1539,7 @@ nrow(df1.shed)
 df1.shed <- as.data.frame(df1.shed[ which(df1.shed$baseMean > 100), ])
 nrow(df1.shed)
 df1.shed <- rownames_to_column(df1.shed, var = "ASV")
-df1.shed$Comparison <- "Shed: Day -9"
+df1.shed$Comparison <- "Shedding: Day -9"
 df1.shed$Variable <- "Shedding"
 
 # Day 0
@@ -1539,7 +1549,7 @@ nrow(df2.shed)
 df2.shed <- as.data.frame(df2.shed[ which(df2.shed$baseMean > 100), ])
 nrow(df2.shed)
 df2.shed <- rownames_to_column(df2.shed, var = "ASV")
-df2.shed$Comparison <- "Shed: Day 0"
+df2.shed$Comparison <- "Shedding: Day 0"
 df2.shed$Variable <- "Shedding"
 
 # Day 7
@@ -1549,7 +1559,7 @@ nrow(df3.shed)
 df3.shed <- as.data.frame(df3.shed[ which(df3.shed$baseMean > 100), ])
 nrow(df3.shed)
 df3.shed <- rownames_to_column(df3.shed, var = "ASV")
-df3.shed$Comparison <- "Shed: Day 7"
+df3.shed$Comparison <- "Shedding: Day 7"
 df3.shed$Variable <- "Shedding"
 
 # Combine all differential abundance tables
@@ -1566,19 +1576,18 @@ df.unique.shed <- left_join(df.unique.shed, ps1.rdp.tax, by = "ASV")
 write.table(df.unique.shed, file = "./results/df_unique_shed.txt", sep = "\t")
 write.table(df.unique.shed, file = "./results/df_all_shed.txt", sep = "\t")
 
-p.shed.point <- ggplot(subset(df.unique.shed, Comparison != "Shed: Day -9"), aes(x = log2FoldChange, y = Family, color = Phylum)) +
+p.shed.point <- ggplot(subset(df.unique.shed, Comparison != "Shedding: Day -9"), aes(x = log2FoldChange, y = Family, color = Phylum)) +
   geom_point(aes(size = log10(baseMean)), alpha = 0.7) +
   facet_grid(~Comparison) +
   geom_vline(xintercept = 0, lty = 2) +
   xlim(-40, 40) +
+  theme(legend.position = "NULL") +
   scale_color_brewer(palette = "Dark2") +
-  geom_errorbarh(aes(xmax = log2FoldChange + lfcSE, xmin = log2FoldChange - lfcSE), size=0.5)
+  geom_errorbarh(aes(xmax = log2FoldChange + lfcSE, xmin = log2FoldChange - lfcSE), size=0.5, height = 0.3) +
+  labs(x=expression(log[2]*" fold-change")) +
+  labs(size=expression(log[10]*" base mean"))
+p.shed.point
 
-```
-
-```{r diffab-plot-for-publication}
-ggarrange(p.boost.point, p.shed.point, nrow = 2, labels = c("A)", "B)"))
-      
 ```
 
 ```{r diffab-trajectories}
@@ -1595,27 +1604,29 @@ nrow(df.all.shed.counts)
 
 # Smoother plots
 p.diff.ab.boost.smooth <- ggplot(df.all.boost.counts, aes(x = day, y = Abundance, group = d7_rota_boost_updated, color = d7_rota_boost_updated)) +
-  geom_point(size = 1, alpha = 0.6) +
+  geom_jitter(size = 1, alpha = 0.6, width = 0.5) +
   scale_y_log10() +
   labs(color = "Boost") +
-  theme(legend.position = "right") +
+  theme(legend.position = "NULL") +
   facet_wrap(Phylum.x~Family.x) +
-  stat_smooth(data = subset(df.all.boost.counts, d7_rota_boost_updated == "No")) +
-  stat_smooth(data = subset(df.all.boost.counts, d7_rota_boost_updated == "Yes"))
+  stat_smooth(data = subset(df.all.boost.counts, d7_rota_boost_updated == "No", method = "loess")) +
+  stat_smooth(data = subset(df.all.boost.counts, d7_rota_boost_updated == "Yes", method = "loess")) +
+  labs(y = "Abundance (rlog)", x = "Day")
 
 p.diff.ab.shed.smooth <- ggplot(df.all.shed.counts, aes(x = day, y = Abundance, group = Shedding, color = Shedding)) +
-  geom_point(size = 1, alpha = 0.6) +
+  geom_jitter(size = 1, alpha = 0.6, width = 0.5) +
   scale_y_log10() +
-  theme(legend.position = "right") +
+  theme(legend.position = "NULL") +
   facet_wrap(Phylum.x~Family.x) +
-  stat_smooth(data = subset(df.all.shed.counts, Shedding == "No shedding")) +
-  stat_smooth(data = subset(df.all.shed.counts, Shedding == "Shedding"))
+  stat_smooth(data = subset(df.all.shed.counts, Shedding == "No shedding", method = "loess")) +
+  stat_smooth(data = subset(df.all.shed.counts, Shedding == "Shedding", method = "loess")) +
+  labs(y = "Abundance (rlog)", x = "Day")
 
 ```
 
 ```{r diffab-figure-for-manuscript}
-ggarrange(ggarrange(p.boost.point, p.shed.point, nrow = 2, labels = c("A)", "B)")),
-          ggarrange(p.diff.ab.boost.smooth, p.diff.ab.shed.smooth, nrow = 2, labels = c("C)", "D)")), widths = c(1.75,1), ncol = 2)
+ggarrange(ggarrange(p.boost.point, p.shed.point, nrow = 2, labels = c("A)", "C)")),
+          ggarrange(p.diff.ab.boost.smooth, p.diff.ab.shed.smooth, nrow = 2, labels = c("B)", "D)")), widths = c(1,1.25), ncol = 2)
 
 ```
 
