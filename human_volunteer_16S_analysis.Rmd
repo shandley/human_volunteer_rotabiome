@@ -55,7 +55,7 @@ library("DESeq2"); packageVersion("DESeq2")
 # Set global theming
 theme_set(theme_bw(base_size = 12))
 
-# Set a random seed so that exact results can be reproduced
+# Set a seed value so that exact results can be reproduced
 set.seed(1000)
 
 ```
@@ -153,7 +153,7 @@ ps1 # Confirm that the taxa were removed
 ```
 ##Data transformations
 
-```{r data-transform, include=FALSE}
+```{r data-transform}
 # Some of these are not used in subsequent analysis, but are coded as a chunk here for convenience
 # Transform to Realative abundances
 ps1.ra <- transform_sample_counts(ps1, function(OTU) OTU/sum(OTU))
@@ -161,7 +161,7 @@ ps1.ra <- transform_sample_counts(ps1, function(OTU) OTU/sum(OTU))
 ```
 ##Subsetting
 
-```{r subsetting, include = FALSE}
+```{r subsetting}
 # No antibiotics (control)
 ps1.con <- subset_samples(ps1, randomization_arm == "No antibiotics")
 ps1.con
@@ -311,7 +311,7 @@ levels(dat.1.reorder$Phylum)
 
 p.gam.phylum <- ggplot(dat.1.reorder, aes(x = day, y = Abundance, color = Phylum)) +
   stat_smooth(method = "gam", formula = y ~ s(x, bs = "cr", k = 3)) +
-  labs(title = "Figure 4", y = "Relative Abundance", x = "Day") +
+  labs(y = "Relative Abundance", x = "Day") +
   scale_x_continuous(breaks = c(-9,0,7)) +
   coord_cartesian(ylim = c(0, 1)) +
   geom_jitter(size = 3, alpha = 0.4, width = 1.5) +
@@ -321,7 +321,7 @@ p.gam.phylum
 ```
 ##Alpha diversity
 
-```{r add-sample-data, include = FALSE}
+```{r add-sample-data}
 # Diversity calculations
 diversity <- global(ps1)
 head(diversity)
@@ -424,7 +424,7 @@ p.sd.shedding <- ggboxplot(subset(ps1.rich, randomization_arm == "Narrow spectru
   theme(axis.title.x = element_blank()) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   stat_compare_means(label = "p.format", method = "t.test", hide.ns = TRUE) +
-  facet_grid(~day) +
+  #facet_grid(~randomization_arm) +
   scale_x_discrete(labels = c("No", "Yes"))
 
 ggarrange(p.rich.shedding, p.sd.shedding, nrow = 2, labels = c("A)", "B)"))
@@ -481,6 +481,7 @@ plot_ordination(ps1, ord.ps1.wuni, color = "Genus", type = "taxa") +
   theme(panel.grid.minor = element_blank())
 
 ```
+## Beta diversity with top 6 Phyla
 
 ```{r beta-div-top-6-phylum}
 # Select only top phyla for display purposes
@@ -512,16 +513,9 @@ p.ord.species
 
 ```
 
-```{r figure-for-manuscript}
+```{r beta-div-figure-for-manuscript}
 ggarrange(p.ord.uni, p.ord.wuni, p.ord.species, nrow = 3, labels = c("A)", "B)", "C)"))
 # Note: p.ord.species was re-ordered in Keynote because SH couldn't figure out a simple way to reorder the phyla in PhyloSeq. He is sure there is a more sophisticated way to do this though :)
-
-```
-
-```{r beta-div-figure-for-manuscript}
-ggarrange(p.ord.wuni,
-          ggarrange(p.ord.species, p.prevotella, p.corpi.d7, ncol = 3, widths = c(1, 0.6, 0.4)),
-          nrow = 2)
 
 ```
 ##Premanova significance testing (ADONIS)
@@ -1011,11 +1005,9 @@ mcols(res.dds.NoAbx.Broad.d7, use.names = TRUE)
 ggplotly(volcano.NoAbx.Broad.d7)
 
 ```
-#Narrow. vs. Broad Spectrum Antibiotics
-
 ##Narrow vs. Broad Spectrum Antibiotics Day -9
 
-```{r diffab-control-vs-broad-d.9}
+```{r diffab-narrow-vs-broad-d.9}
 # Differential Abundance Testing
 sample_data(ps1.NvB_9)$randomization_arm
 sample_data(ps1.NvB_9)$day
@@ -1141,7 +1133,7 @@ ggplotly(volcano.Narrow.Broad.d0)
 ```
 ##Narrow vs. Broad Spectrum Antibiotics Day 7
 
-```{r diffab-control-vs-broad-d7}
+```{r diffab-narrow-vs-broad-d7}
 # Differential Abundance Testing
 sample_data(ps1.NvB.7)$randomization_arm
 sample_data(ps1.NvB.7)$day
@@ -1213,7 +1205,7 @@ nrow(df1)
 df1 <- as.data.frame(df1[ which(df1$baseMean > 100), ])
 nrow(df1)
 df1 <- rownames_to_column(df1, var = "ASV")
-df1$Comparison <- "Control_v_Narrow_d_9"
+# df1$Comparison <- "Control_v_Narrow_d_9" errors out as there are no taxa
 write.table(df1, file = "./Results/df1.txt", sep = "\t")
 
 # Control vs. Narrow D0
@@ -1233,7 +1225,7 @@ nrow(df3)
 df3 <- as.data.frame(df3[ which(df3$baseMean > 100), ])
 nrow(df3)
 df3 <- rownames_to_column(df3, var = "ASV")
-df3$Comparison <- "Control_v_Narrow_d7"
+# df3$Comparison <- "Control_v_Narrow_d7" errors out as there are no taxa
 write.table(df3, file = "./Results/df3.txt", sep = "\t")
 
 # Control vs. Broad D_9
@@ -1273,7 +1265,7 @@ nrow(df7)
 df7 <- as.data.frame(df7[ which(df7$baseMean > 100), ])
 nrow(df7)
 df7 <- rownames_to_column(df7, var = "ASV")
-df7$Comparison <- "Narrow_v_Broad_d_9"
+#df7$Comparison <- "Narrow_v_Broad_d_9" errors out as there are no taxa
 write.table(df7, file = "./Results/df7.txt", sep = "\t")
 
 # Narrow vs. Broad D0
@@ -1627,6 +1619,12 @@ p.diff.ab.shed.smooth <- ggplot(df.all.shed.counts, aes(x = day, y = Abundance, 
 ```{r diffab-figure-for-manuscript}
 ggarrange(ggarrange(p.boost.point, p.shed.point, nrow = 2, labels = c("A)", "C)")),
           ggarrange(p.diff.ab.boost.smooth, p.diff.ab.shed.smooth, nrow = 2, labels = c("B)", "D)")), widths = c(1,1.25), ncol = 2)
+
+```
+
+```{r session-info}
+# Display current R session information
+sessionInfo()
 
 ```
 
