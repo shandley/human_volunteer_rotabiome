@@ -1,5 +1,5 @@
 ---
-title: "Harris - 16S - Single-End Protocol"
+title: "Human Volunteer 16S Amplicon Preprocessing"
 author: "Scott A. Handley & Barry Hykes, Jr"
 date: '`r format(Sys.Date(), "%B %d, %Y")`'
 output: html_document
