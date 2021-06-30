@@ -16,11 +16,10 @@ Antibiotics were provided for 7 days (day -3 to -9) prior to vaccination with th
 * Rotarix
 * Tetanus toxoid
 
-Vaccination outcome was determined by a combination of fecal and serum antibody tests at periods for 28 days. Stool was collected at Day -9 (antibiotic initiation), Day 0 (vaccine administration) and Day 7 (post-vaccination) and subjected to 16S rRNA gene amplicon sequencing. Samples were demultiplexed and preprocessed with dada2 to extract amplicon sequence varaints (ASVs). ASVs were analyzed using R with heavy reliance on PhyloSeq.
+Vaccination outcome was determined by a combination of fecal and serum antibody tests at periods for 28 days. Stool was collected at Day -9 (antibiotic initiation), Day 0 (vaccine administration) and Day 7 (post-vaccination) and subjected to 16S rRNA gene amplicon sequencing. Samples were demultiplexed and preprocessed with dada2 to extract amplicon sequence variants (ASVs). ASVs were analyzed using R with heavy reliance on PhyloSeq.
 
 ## Reference
-
-can I change this? This is better than kathie's.
+Harris VC, Haak BW, Handley SA, Jiang B, Velasquez DE, Hykes BL Jr, Droit L, Berbers GAM, Kemper EM, van Leeuwen EMM, Boele van Hensbroek M, Wiersinga WJ. [Effect of Antibiotic-Mediated Microbiome Modulation on Rotavirus Vaccine Immunogenicity: A Human, Randomized-Control Proof-of-Concept Trial.](https://pubmed.ncbi.nlm.nih.gov/30092197/) Cell Host Microbe. 2018 Aug 8;24(2):197-207.e4. doi: 10.1016/j.chom.2018.07.005. PMID: 30092197.
 
 ## Raw data
 
